@@ -1,6 +1,6 @@
-const CACHE_NAME = 'ter-portal-v7';
+const CACHE_NAME = 'ter-portal-v8';
 
-// All files to cache on first load
+// All files to cache on first load — fonts excluded (system fallbacks cover offline use)
 const CACHE_ASSETS = [
   '/',
   '/index.html',
@@ -10,20 +10,24 @@ const CACHE_ASSETS = [
   '/projects.json',
   '/users.json',
   '/TER-logo.png',
-  // jsPDF is now embedded inline — no CDN dependency
-  'https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@300;400;500;600&display=swap',
 ];
+
+// Attempt to cache a single URL with a timeout so slow assets never block install
+function cacheWithTimeout(cache, url, ms = 5000) {
+  const timeout = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('timeout')), ms)
+  );
+  return Promise.race([cache.add(url), timeout])
+    .catch(err => console.warn('[SW] Skipped (failed/timeout):', url, err.message));
+}
 
 // Install — cache all assets
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
       console.log('[SW] Caching all assets');
-      // Cache what we can, skip failures (e.g. fonts may fail without internet)
       return Promise.allSettled(
-        CACHE_ASSETS.map(url =>
-          cache.add(url).catch(err => console.warn('[SW] Failed to cache:', url, err))
-        )
+        CACHE_ASSETS.map(url => cacheWithTimeout(cache, url))
       );
     }).then(() => self.skipWaiting())
   );
