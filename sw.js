@@ -1,39 +1,11 @@
-const CACHE_NAME = 'ter-portal-v8';
+const CACHE_NAME = 'ter-portal-v9';
 
-// All files to cache on first load — fonts excluded (system fallbacks cover offline use)
-const CACHE_ASSETS = [
-  '/',
-  '/index.html',
-  '/worksreport.html',
-  '/supervisorreport.html',
-  '/onboarding.html',
-  '/projects.json',
-  '/users.json',
-  '/TER-logo.png',
-];
-
-// Attempt to cache a single URL with a timeout so slow assets never block install
-function cacheWithTimeout(cache, url, ms = 5000) {
-  const timeout = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error('timeout')), ms)
-  );
-  return Promise.race([cache.add(url), timeout])
-    .catch(err => console.warn('[SW] Skipped (failed/timeout):', url, err.message));
-}
-
-// Install — cache all assets
+// Install — activate immediately, no pre-caching (avoids install stalls on mobile)
 self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      console.log('[SW] Caching all assets');
-      return Promise.allSettled(
-        CACHE_ASSETS.map(url => cacheWithTimeout(cache, url))
-      );
-    }).then(() => self.skipWaiting())
-  );
+  self.skipWaiting();
 });
 
-// Activate — clean up old caches
+// Activate — clean up old caches, claim all clients immediately
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
@@ -47,47 +19,33 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Fetch — serve from cache, fall back to network
+// Fetch — network first, cache on success, fall back to cache when offline
 self.addEventListener('fetch', event => {
-  // Skip non-GET and cross-origin requests we don't control
   if (event.request.method !== 'GET') return;
-  
-  // Skip the Cloudflare Worker API calls — always need network for uploads
+
+  // Always go to network for these — never cache
   if (event.request.url.includes('workers.dev')) return;
-  
-  // Skip Microsoft auth — always needs network
   if (event.request.url.includes('microsoftonline.com')) return;
   if (event.request.url.includes('graph.microsoft.com')) return;
-
-  // Skip Turnstile — needs network
   if (event.request.url.includes('challenges.cloudflare.com')) return;
+  if (event.request.url.includes('fonts.googleapis.com')) return;
+  if (event.request.url.includes('fonts.gstatic.com')) return;
 
   event.respondWith(
-    caches.match(event.request).then(cachedResponse => {
-      if (cachedResponse) {
-        // Serve from cache, but also update cache in background if online
-        const fetchPromise = fetch(event.request).then(networkResponse => {
-          if (networkResponse && networkResponse.status === 200) {
-            const responseClone = networkResponse.clone();
-            caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseClone));
-          }
-          return networkResponse;
-        }).catch(() => cachedResponse); // If network fails, cached is fine
-        
-        return cachedResponse; // Return cache immediately
+    fetch(event.request).then(networkResponse => {
+      // Cache any successful same-origin or CORS response
+      if (networkResponse && networkResponse.status === 200 && networkResponse.type !== 'opaque') {
+        const clone = networkResponse.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
       }
-
-      // Not in cache — try network, cache the result
-      return fetch(event.request).then(networkResponse => {
-        if (!networkResponse || networkResponse.status !== 200 || networkResponse.type === 'opaque') {
-          return networkResponse;
-        }
-        const responseClone = networkResponse.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseClone));
-        return networkResponse;
-      }).catch(() => {
-        // Offline and not cached — return offline page for HTML requests
-        if (event.request.headers.get('accept').includes('text/html')) {
+      return networkResponse;
+    }).catch(() => {
+      // Network failed — serve from cache
+      return caches.match(event.request).then(cached => {
+        if (cached) return cached;
+        // Last resort for HTML navigations: return index.html
+        if (event.request.headers.get('accept') &&
+            event.request.headers.get('accept').includes('text/html')) {
           return caches.match('/index.html');
         }
       });
@@ -103,8 +61,7 @@ self.addEventListener('sync', event => {
 });
 
 async function syncQueuedReports() {
-  // This will be called when connection is restored
-  // The actual sync logic lives in the page JS
+  // Notify page JS to handle the sync when connection is restored
   const clients = await self.clients.matchAll();
   clients.forEach(client => client.postMessage({ type: 'SYNC_REPORTS' }));
 }
