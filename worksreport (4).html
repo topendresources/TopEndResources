@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Top End Resources — Works Report</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root {
+    --navy: #2D2B77;
+    --teal: #06749C;
+    --teal-light: #E8F4F9;
+    --green: #1D9E75;
+    --green-light: #E1F5EE;
+    --amber: #F59E0B;
+    --amber-light: #FEF3C7;
+    --red: #DC2626;
+    --red-light: #FEE2E2;
+    --bg: #F0F4F8;
+    --surface: #FFFFFF;
+    --border: #E0E7EF;
+    --text: #1A1A2E;
+    --text-secondary: #5A6A7A;
+    --text-hint: #9CA3AF;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --gradient: linear-gradient(135deg, #2D2B77, #06749C);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Barlow', sans-serif; background: var(--bg); color: var(--text); font-size: 15px; min-height: 100vh; }
+
+  .header {
+    background: var(--gradient);
+    padding: 0 32px;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 64px; position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 2px 12px rgba(45,43,119,0.3);
+  }
+  .header-logo { display: flex; align-items: center; gap: 12px; }
+  .header-logo img { height: 36px; }
+  .header-title { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 18px; color: white; letter-spacing: 0.05em; }
+  .header-sub { font-size: 11px; color: rgba(255,255,255,0.7); letter-spacing: 0.1em; text-transform: uppercase; }
+  .header-right { font-size: 12px; color: rgba(255,255,255,0.7); }
+
+  .container { max-width: 860px; margin: 0 auto; padding: 32px 24px 80px; }
+
+  .page-title { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 32px; color: var(--navy); margin-bottom: 6px; }
+  .page-sub { font-size: 14px; color: var(--text-secondary); margin-bottom: 28px; line-height: 1.6; }
+
+  .card { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); padding: 24px; margin-bottom: 20px; }
+  .card-title { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 18px; color: var(--navy); margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+  .card-icon { width: 32px; height: 32px; border-radius: 8px; background: var(--gradient); display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .form-grid.full { grid-template-columns: 1fr; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.06em; }
+  .req { color: var(--red); margin-left: 2px; }
+  input, select, textarea {
+    font-size: 14px; padding: 11px 14px;
+    border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+    background: var(--surface); color: var(--text); width: 100%;
+    font-family: inherit; transition: all 0.15s;
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(6,116,156,0.1); }
+  textarea { resize: vertical; min-height: 100px; }
+
+  .yes-no-group { display: flex; gap: 10px; }
+  .yn-btn {
+    flex: 1; padding: 10px; border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+    background: var(--surface); color: var(--text-secondary); font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s; text-align: center; font-family: inherit;
+  }
+  .yn-btn.yes.active { background: var(--green-light); border-color: var(--green); color: #0F6E56; }
+  .yn-btn.no.active { background: var(--red-light); border-color: var(--red); color: var(--red); }
+  .yn-btn:hover { border-color: var(--teal); }
+
+  .equipment-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+  .equip-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+    cursor: pointer; transition: all 0.15s; background: var(--surface); font-size: 13px;
+  }
+  .equip-item:hover { border-color: var(--teal); background: var(--teal-light); }
+  .equip-item.selected { border-color: var(--teal); background: var(--teal-light); color: var(--teal); }
+  .equip-item input { width: auto; margin: 0; }
+  .equip-id { font-size: 10px; font-weight: 700; color: var(--text-hint); margin-left: auto; }
+
+  .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-bottom: 12px; }
+  .photo-slot {
+    aspect-ratio: 4/3; border: 2px dashed var(--border); border-radius: var(--radius-sm);
+    background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 0.15s; position: relative; overflow: hidden;
+  }
+  .photo-slot:hover { border-color: var(--teal); background: var(--teal-light); }
+  .photo-slot.has-photo { border-color: var(--green); border-style: solid; }
+  .photo-slot input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .photo-slot img { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; }
+  .photo-slot-label { font-size: 11px; color: var(--text-hint); text-align: center; padding: 8px; z-index: 1; }
+  .photo-icon { font-size: 24px; margin-bottom: 4px; }
+  .photo-meta { font-size: 10px; color: var(--text-hint); margin-top: 4px; text-align: center; }
+  .add-photo-btn {
+    border: 2px dashed var(--teal); border-radius: var(--radius-sm); background: var(--teal-light);
+    padding: 12px; text-align: center; cursor: pointer; color: var(--teal); font-size: 13px;
+    font-weight: 600; transition: all 0.15s;
+  }
+  .add-photo-btn:hover { background: rgba(6,116,156,0.15); }
+
+  .sig-wrap { border: 1.5px solid var(--border); border-radius: var(--radius-sm); background: #fff; position: relative; }
+  canvas { width: 100%; height: 140px; display: block; cursor: crosshair; border-radius: var(--radius-sm); background: #ffffff; }
+  .sig-clear { position: absolute; top: 8px; right: 8px; font-size: 11px; padding: 4px 10px; background: rgba(0,0,0,0.06); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; color: var(--text-secondary); }
+
+  .alert { padding: 12px 16px; border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 16px; }
+  .alert-info { background: var(--teal-light); color: var(--teal); border: 1px solid #85B7EB; }
+  .alert-warning { background: var(--amber-light); color: #92400E; border: 1px solid #FCD34D; }
+  .alert-error { background: var(--red-light); color: var(--red); border: 1px solid #FCA5A5; display: none; }
+  .alert-success { background: var(--green-light); color: #0F6E56; border: 1px solid #9FE1CB; display: none; }
+
+  .btn { padding: 11px 22px; border-radius: var(--radius-sm); font-size: 14px; font-weight: 600; cursor: pointer; border: 1.5px solid var(--border); background: var(--surface); color: var(--text); font-family: inherit; transition: all 0.15s; }
+  .btn-primary { background: var(--gradient); color: white; border: none; width: 100%; padding: 16px; font-size: 16px; font-family: 'Barlow Condensed', sans-serif; letter-spacing: 0.08em; text-transform: uppercase; }
+  .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(45,43,119,0.3); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .submit-progress { display: none; }
+  .progress-bar-wrap { background: var(--border); border-radius: 99px; height: 8px; margin: 12px 0 6px; overflow: hidden; }
+  .progress-bar-fill { height: 8px; border-radius: 99px; background: var(--gradient); transition: width 0.4s ease; width: 0%; }
+  .progress-status { font-size: 12px; color: var(--text-secondary); text-align: center; }
+
+
+  .char-counter { font-size: 11px; color: var(--text-hint); text-align: right; margin-top: 4px; }
+  .char-counter.warn { color: var(--amber); }
+  .char-counter.ok { color: var(--green); }
+
+  @media (max-width: 600px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .container { padding: 20px 16px 80px; }
+    .header { padding: 0 16px; }
+    .equipment-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-logo">
+    <img src="TER-logo.png" alt="TER" onerror="this.style.display='none'">
+    <div>
+      <div class="header-title">Top End Resources</div>
+      <div class="header-sub">Works Report</div>
+    </div>
+  </div>
+  <div class="header-right" id="header-user"></div>
+</div>
+
+<div class="container">
+  <div class="page-title">Works Report</div>
+  <div class="page-sub">Complete all required fields. Reports are submitted directly to the project folder in SharePoint.</div>
+
+  <div id="alert-error" class="alert alert-error"></div>
+  <div id="alert-success" class="alert alert-success"></div>
+
+  <!-- ── SECTION 1: REPORT DETAILS ── -->
+  <div class="card">
+    <div class="card-title"><div class="card-icon">📋</div> Report Details</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Date <span class="req">*</span></label>
+        <input type="date" id="r-date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Prepared By <span class="req">*</span></label>
+        <input type="text" id="r-preparedby" placeholder="Your full name" readonly>
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Project <span class="req">*</span></label>
+        <select id="r-project" onchange="onProjectChange()">
+          <option value="">Select project...</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Work Type <span class="req">*</span></label>
+        <select id="r-worktype" disabled>
+          <option value="">Select project first...</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-grid full" id="worktype-other-wrap" style="display:none">
+      <div class="form-group">
+        <label class="form-label">Describe Work Type <span class="req">*</span></label>
+        <input type="text" id="r-worktype-other" placeholder="Describe the work type performed">
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Group / Region <span class="req">*</span></label>
+        <select id="r-group" disabled onchange="onGroupChange()">
+          <option value="">Select project first...</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Location of Works <span class="req">*</span></label>
+        <select id="r-location" disabled>
+          <option value="">Select group first...</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-grid full">
+      <div class="form-group">
+        <label class="form-label">Additional Location Notes <span style="font-size:11px;color:var(--text-hint);font-style:italic;margin-left:4px">(optional)</span></label>
+        <input type="text" id="r-location-notes" placeholder="e.g. Chainage 45+200, northern end, near culvert">
+      </div>
+    </div>
+    <div class="form-grid" style="display:none"><!-- spacer --></div>
+    <div class="form-grid">
+      <div class="form-group" style="display:none"><!-- placeholder --></div>
+      <div class="form-group">
+        <label class="form-label">Weather Conditions <span class="req">*</span></label>
+        <select id="r-weather">
+          <option value="">Select...</option>
+          <option>Fine & Clear</option>
+          <option>Partly Cloudy</option>
+          <option>Overcast</option>
+          <option>Light Rain</option>
+          <option>Heavy Rain</option>
+          <option>Storm</option>
+          <option>Extreme Heat</option>
+          <option>High Wind</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SECTION 2: SAFETY INSPECTION ── -->
+  <div class="card">
+    <div class="card-title"><div class="card-icon">🦺</div> Safety Inspection</div>
+    <div class="alert alert-info">All inspection items must be answered before submitting the report.</div>
+
+    <div id="inspection-items">
+      <!-- populated by JS based on project type -->
+    </div>
+  </div>
+
+  <!-- ── SECTION 3: EQUIPMENT USED ── -->
+  
+
+  <!-- ── SECTION 4: WORKS DESCRIPTION ── -->
+  
+
+  <!-- ── SECTION 6: WORK PHOTOS ── -->
+  <div class="card">
+    <div class="card-title"><div class="card-icon">📷</div> Work Photos</div>
+    <div class="alert alert-warning">At least 2 photos are required. Photos are automatically timestamped.</div>
+    <div class="photo-grid" id="photo-grid"></div>
+    <div class="add-photo-btn" onclick="addPhotoSlot()">+ Add Another Photo</div>
+    <div id="gps-status" style="font-size:11px;color:var(--text-hint);margin-top:8px"></div>
+  </div>
+
+  <!-- ── SECTION 7: DECLARATION ── -->
+  <div class="card">
+    <div class="card-title"><div class="card-icon">✍️</div> Declaration & Signature</div>
+    <div style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;line-height:1.6">
+      I declare that the information contained in this Daily Works Report is true and correct to the best of my knowledge. I confirm that all safety requirements were met during the works described.
+    </div>
+    <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin-bottom:16px">
+      <input type="checkbox" id="r-declare" style="width:18px;height:18px;flex-shrink:0;margin-top:2px;accent-color:var(--teal)">
+      <span style="font-size:13px">I, <strong id="r-declarer-name">—</strong>, declare this report is true and correct.</span>
+    </label>
+    <label class="form-label" style="margin-bottom:6px">Signature <span class="req">*</span></label>
+    <div class="sig-wrap">
+      <canvas id="report-sig-canvas" width="700" height="140"></canvas>
+      <button class="sig-clear" onclick="clearReportSig()" type="button">Clear</button>
+    </div>
+    <div style="font-size:11px;color:var(--text-hint);margin-top:4px">Sign above using your mouse or finger</div>
+    <div id="r-signed-time" style="font-size:12px;color:var(--text-secondary);margin-top:8px;display:none">✅ Signed: <strong id="r-signed-time-val"></strong></div>
+  </div>
+
+  <!-- ── SUBMIT ── -->
+  <button class="btn btn-primary" id="submit-btn" onclick="submitReport()">🚀 Submit Works Report</button>
+  <div class="submit-progress" id="submit-progress">
+    <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progress-bar"></div></div>
+    <div class="progress-status" id="progress-status">Preparing report...</div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────────────────────
+const WORKER_URL = 'https://teronboarding.ryan-wojtowicz525.workers.dev';
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let projectsData = { projects: [], equipment: [] };
+let currentUser = null;
+let yesNoState = { damage: 'no', issues: 'no' };
+let photoFiles = [];
+let photoMeta = [];
+let gpsCoords = null;
+let selectedEquipment = new Set();
+
+// ── INSPECTION QUESTIONS BY PROJECT TYPE ──────────────────────────────────────
+const INSPECTION_BASE = [
+  { id: 'swms',    label: 'SWMS in place for all tasks?' },
+  { id: 'env',     label: 'Environmental provisions in place?' },
+  { id: 'equip',   label: 'Equipment in good working order?' },
+];
+const INSPECTION_ROAD = [
+  { id: 'swms',    label: 'SWMS in place for all tasks?' },
+  { id: 'traffic', label: 'Traffic control provisions in place?' },
+  { id: 'env',     label: 'Environmental provisions in place?' },
+  { id: 'equip',   label: 'Equipment in good working order?' },
+  { id: 'road',    label: 'Road in safe condition after end of shift?' },
+];
+let inspectionAnswers = {};
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+async function init() {
+  // Set date to today
+  document.getElementById('r-date').value = new Date().toISOString().split('T')[0];
+
+  // Get user from portal session
+  const portalUser = localStorage.getItem('ter_portal_user') || sessionStorage.getItem('ter_portal_user');
+  if (portalUser) {
+    try {
+      currentUser = JSON.parse(portalUser);
+    } catch(e) {}
+  }
+  // Fallback — check URL param
+  const params = new URLSearchParams(window.location.search);
+  if (!currentUser && params.get('user')) {
+    currentUser = { name: params.get('user'), role: params.get('role') || 'worker' };
+  }
+  if (!currentUser) {
+    currentUser = { name: 'Unknown User', role: 'worker' };
+  }
+
+  document.getElementById('r-preparedby').value = currentUser.name;
+  document.getElementById('header-user').textContent = currentUser.name;
+  document.getElementById('r-declarer-name').textContent = currentUser.name;
+
+
+  // Load projects config
+  await loadProjects();
+
+  // Render default inspection questions on page load
+  renderInspection([
+    { id: 'swms', label: 'SWMS in place for all tasks?' },
+    { id: 'enviro', label: 'Environmental provisions in place?' },
+    { id: 'equip', label: 'Equipment in good working order?' },
+  ]);
+
+  // Init photo slots (start with 2)
+  addPhotoSlot();
+  addPhotoSlot();
+
+  // Init signature pad
+  initSigPad();
+
+  // Request GPS
+  requestGPS();
+}
+
+// ── LOAD PROJECTS ─────────────────────────────────────────────────────────────
+async function loadProjects() {
+  try {
+    const res = await fetch('projects.json?v=' + Date.now());
+    projectsData = await res.json();
+  } catch(e) {
+    console.warn('Could not load projects.json');
+    projectsData = { projects: [], equipment: [] };
+  }
+
+  // Populate project dropdown
+  const sel = document.getElementById('r-project');
+  projectsData.projects.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.name;
+    sel.appendChild(opt);
+  });
+
+  // Populate equipment grid
+  renderEquipment();
+}
+
+// ── PROJECT CHANGE ────────────────────────────────────────────────────────────
+function onProjectChange() {
+  const projectId = document.getElementById('r-project').value;
+  const project = projectsData.projects.find(p => p.id === projectId);
+  const workSel = document.getElementById('r-worktype');
+  const grpSel = document.getElementById('r-group');
+  const locSel = document.getElementById('r-location');
+
+  workSel.innerHTML = '<option value="">Select work type...</option>';
+  grpSel.innerHTML = '<option value="">Select group/region...</option>';
+  locSel.innerHTML = '<option value="">Select group first...</option>';
+  workSel.disabled = !project;
+  grpSel.disabled = !project;
+  locSel.disabled = true;
+
+  if (!project) return;
+
+  project.workTypes.forEach(wt => {
+    const opt = document.createElement('option');
+    opt.value = wt; opt.textContent = wt;
+    workSel.appendChild(opt);
+  });
+
+  // Populate groups
+  const groups = project.groups || {};
+  const groupKeys = Object.keys(groups);
+  if (groupKeys.length === 1) {
+    grpSel.innerHTML = '<option value="' + groupKeys[0] + '">' + groupKeys[0] + '</option>';
+    grpSel.disabled = true;
+    onGroupChange();
+  } else {
+    groupKeys.forEach(g => {
+      const opt = document.createElement('option');
+      opt.value = g; opt.textContent = g;
+      grpSel.appendChild(opt);
+    });
+  }
+
+  // Traffic control
+  const isRoad = project.hasTrafficControl;
+
+  // Render inspection questions based on project type
+  const baseQuestions = [
+    { id: 'swms', label: 'SWMS in place for all tasks?' },
+    { id: 'enviro', label: 'Environmental provisions in place?' },
+    { id: 'equip', label: 'Equipment in good working order?' },
+  ];
+  if (isRoad) {
+    baseQuestions.push({ id: 'traffic', label: 'Traffic control provisions in place?' });
+    baseQuestions.push({ id: 'road', label: 'Road in safe condition after end of shift?' });
+  }
+  renderInspection(baseQuestions);
+
+  // Other work type field
+  const otherWrap = document.getElementById('worktype-other-wrap');
+  if (otherWrap) otherWrap.style.display = 'none';
+}
+
+function onGroupChange() {
+  const projectId = document.getElementById('r-project').value;
+  const groupId = document.getElementById('r-group').value;
+  const locSel = document.getElementById('r-location');
+  locSel.innerHTML = '<option value="">Select location...</option>';
+  locSel.disabled = !groupId;
+  if (!projectId || !groupId) return;
+  const project = projectsData.projects.find(p => p.id === projectId);
+  if (!project) return;
+  const locations = (project.groups || {})[groupId] || [];
+  locations.forEach(loc => {
+    const opt = document.createElement('option');
+    opt.value = loc; opt.textContent = loc;
+    locSel.appendChild(opt);
+  });
+}
+
+
+// ── INSPECTION ────────────────────────────────────────────────────────────────
+function renderInspection(questions) {
+  inspectionAnswers = {};
+  const container = document.getElementById('inspection-items');
+  container.innerHTML = questions.map(q => `
+    <div style="margin-bottom:14px">
+      <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px">${q.label} <span class="req">*</span></div>
+      <div class="yes-no-group">
+        <button class="yn-btn yes" onclick="setInspection('${q.id}','yes',this)">✓ Yes</button>
+        <button class="yn-btn no" onclick="setInspection('${q.id}','no',this)">✗ No</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function setInspection(id, val, btn) {
+  inspectionAnswers[id] = val;
+  const group = btn.closest('.yes-no-group');
+  group.querySelectorAll('.yn-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// ── EQUIPMENT ─────────────────────────────────────────────────────────────────
+function renderEquipment() {
+  const sel = document.getElementById('equipment-select');
+  if (!sel) return;
+  sel.innerHTML = '';
+  projectsData.equipment.forEach(e => {
+    if (!e.name || e.name === 'Unassigned') return;
+    const opt = document.createElement('option');
+    opt.value = e.id;
+    opt.textContent = e.id + ' — ' + e.name + (e.rego ? ' (' + e.rego + ')' : '');
+    sel.appendChild(opt);
+  });
+  sel.addEventListener('change', updateEquipDisplay);
+}
+
+function updateEquipDisplay() {
+  const sel = document.getElementById('equipment-select');
+  const display = document.getElementById('equip-selected-display');
+  selectedEquipment = new Set(Array.from(sel.selectedOptions).map(o => o.value));
+  if (display) {
+    display.innerHTML = Array.from(sel.selectedOptions).map(o =>
+      `<span style="background:var(--teal-light);color:var(--teal);border:1px solid var(--teal);border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600">${o.textContent}</span>`
+    ).join('');
+  }
+}
+
+function getSelectedEquipmentList() {
+  const sel = document.getElementById('equipment-select');
+  if (!sel) return [];
+  return Array.from(sel.selectedOptions).map(o => o.textContent);
+}
+
+
+// ── YES/NO BUTTONS ────────────────────────────────────────────────────────────
+function setYesNo(key, val, btn) {
+  yesNoState[key] = val;
+  const group = btn.closest('.yes-no-group');
+  group.querySelectorAll('.yn-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (key === 'damage') document.getElementById('damage-detail-wrap').style.display = val === 'yes' ? 'block' : 'none';
+  if (key === 'issues') document.getElementById('issues-detail-wrap').style.display = val === 'yes' ? 'block' : 'none';
+}
+
+// ── WORD COUNTER ──────────────────────────────────────────────────────────────
+function updateCharCount(ta, counterId, minWords) {
+  const words = ta.value.trim().split(/\s+/).filter(w => w.length > 0).length;
+  const el = document.getElementById(counterId);
+  el.textContent = words + ' word' + (words !== 1 ? 's' : '') + (minWords ? ' — minimum ' + minWords + ' required' : '');
+  el.className = 'char-counter ' + (words >= minWords ? 'ok' : words > 0 ? 'warn' : '');
+}
+
+// ── PHOTOS ────────────────────────────────────────────────────────────────────
+function addPhotoSlot() {
+  const idx = photoFiles.length;
+  photoFiles.push(null);
+  photoMeta.push(null);
+
+  const grid = document.getElementById('photo-grid');
+  const slot = document.createElement('div');
+  slot.className = 'photo-slot';
+  slot.id = 'photo-slot-' + idx;
+  slot.innerHTML = `
+    <input type="file" accept="image/*" capture="environment" onchange="handlePhoto(this,${idx})">
+    <div class="photo-icon">📷</div>
+    <div class="photo-slot-label">Photo ${idx + 1}<br><span style="font-size:10px">Tap to capture or upload</span></div>
+  `;
+  grid.appendChild(slot);
+}
+
+function handlePhoto(input, idx) {
+  const file = input.files[0];
+  if (!file) return;
+  photoFiles[idx] = file;
+
+  const now = new Date();
+  const timestamp = now.toLocaleString('en-AU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const meta = { timestamp, lat: gpsCoords ? gpsCoords.lat : null, lng: gpsCoords ? gpsCoords.lng : null };
+  photoMeta[idx] = meta;
+
+  const slot = document.getElementById('photo-slot-' + idx);
+  const reader = new FileReader();
+  reader.onload = e => {
+    slot.classList.add('has-photo');
+    slot.innerHTML = `
+      <img src="${e.target.result}" alt="Photo ${idx+1}">
+      <div class="photo-meta" style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.6);color:#fff;padding:4px;font-size:9px;z-index:2">
+        📅 ${timestamp}${meta.lat ? ` | 📍 ${meta.lat.toFixed(4)},${meta.lng.toFixed(4)}` : ''}
+      </div>
+      <input type="file" accept="image/*" capture="environment" onchange="handlePhoto(this,${idx})" style="position:absolute;inset:0;opacity:0;cursor:pointer;z-index:3">
+    `;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── GPS ───────────────────────────────────────────────────────────────────────
+function requestGPS() {
+  if (!navigator.geolocation) return;
+  const status = document.getElementById('gps-status');
+  status.textContent = '📍 Requesting location...';
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      gpsCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      status.textContent = `📍 Location captured: ${gpsCoords.lat.toFixed(4)}, ${gpsCoords.lng.toFixed(4)}`;
+      status.style.color = 'var(--green)';
+    },
+    err => {
+      status.textContent = '📍 Location not available — project location will be used instead.';
+    }
+  );
+}
+
+// ── SIGNATURE PAD ─────────────────────────────────────────────────────────────
+function initSigPad() {
+  const canvas = document.getElementById('report-sig-canvas');
+  const ctx = canvas.getContext('2d');
+  let drawing = false;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = '#1A1A2E';
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const src = e.touches ? e.touches[0] : e;
+    return { x: (src.clientX - rect.left) * (canvas.width / rect.width), y: (src.clientY - rect.top) * (canvas.height / rect.height) };
+  }
+  canvas.onmousedown = e => { drawing = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); };
+  canvas.onmousemove = e => { if (!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); };
+  canvas.onmouseup = canvas.onmouseleave = () => drawing = false;
+  canvas.ontouchstart = e => { e.preventDefault(); drawing = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); };
+  canvas.ontouchmove = e => { e.preventDefault(); if (!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); };
+  canvas.ontouchend = () => drawing = false;
+}
+
+function clearReportSig() {
+  const canvas = document.getElementById('report-sig-canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  document.getElementById('r-signed-time').style.display = 'none';
+}
+
+function isSigned() {
+  const canvas = document.getElementById('report-sig-canvas');
+  const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i] < 250 || data[i+1] < 250 || data[i+2] < 250) return true;
+  }
+  return false;
+}
+
+// ── VALIDATION ────────────────────────────────────────────────────────────────
+function validate() {
+  const errs = [];
+
+  if (!document.getElementById('r-date').value) errs.push('Date is required.');
+  if (!document.getElementById('r-project').value) errs.push('Please select a project.');
+  if (!document.getElementById('r-worktype').value) errs.push('Please select a work type.');
+  if (document.getElementById('r-worktype').value === 'Other' && !document.getElementById('r-worktype-other').value.trim()) errs.push('Please describe the work type.');
+  if (!document.getElementById('r-location').value.trim()) errs.push('Location of works is required.');
+  if (!document.getElementById('r-weather').value) errs.push('Weather conditions are required.');
+
+  // Inspection
+  const projectId = document.getElementById('r-project').value;
+  const project = projectsData.projects.find(p => p.id === projectId);
+  if (project) {
+    const isRoad = project.id.startsWith('SK') || project.id.startsWith('ST');
+    const questions = isRoad ? INSPECTION_ROAD : INSPECTION_BASE;
+    questions.forEach(q => {
+      if (!inspectionAnswers[q.id]) errs.push('Please answer: ' + q.label);
+    });
+  }
+
+  // Description
+  const desc = document.getElementById('r-description').value.trim();
+  const wordCount = desc.split(/\s+/).filter(w => w.length > 0).length;
+  if (wordCount < 20) errs.push('Works description must be at least 10 words (' + wordCount + ' entered).');
+
+  // Damage/issues detail
+  if (yesNoState.damage === 'yes' && !document.getElementById('r-damage').value.trim()) errs.push('Please provide damage details.');
+  if (yesNoState.issues === 'yes' && !document.getElementById('r-issues').value.trim()) errs.push('Please provide issues/delays details.');
+
+  // Photos — at least 2
+  const photoCount = photoFiles.filter(f => f !== null).length;
+  if (photoCount < 2) errs.push('At least 2 work photos are required (' + photoCount + ' uploaded).');
+
+
+  // Declaration
+  if (!document.getElementById('r-declare').checked) errs.push('Please tick the declaration checkbox.');
+  if (!isSigned()) errs.push('Please sign the report before submitting.');
+
+  return errs;
+}
+
+// ── SUBMIT ────────────────────────────────────────────────────────────────────
+async function submitReport() {
+  const errs = validate();
+  const errEl = document.getElementById('alert-error');
+  if (errs.length > 0) {
+    errEl.style.display = 'block';
+    errEl.innerHTML = '<strong>Please fix the following:</strong><br>' + errs.map(e => '• ' + e).join('<br>');
+    errEl.scrollIntoView({ behavior: 'smooth' });
+    return;
+  }
+  errEl.style.display = 'none';
+
+  document.getElementById('submit-btn').disabled = true;
+  document.getElementById('submit-progress').style.display = 'block';
+
+  const bar = document.getElementById('progress-bar');
+  const status = document.getElementById('progress-status');
+
+  try {
+    const project = projectsData.projects.find(p => p.id === document.getElementById('r-project').value);
+    const date = document.getElementById('r-date').value;
+    const preparedBy = document.getElementById('r-preparedby').value;
+    const workType = document.getElementById('r-worktype').value === 'Other'
+      ? document.getElementById('r-worktype-other').value
+      : document.getElementById('r-worktype').value;
+
+    const signedAt = new Date().toLocaleString('en-AU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    document.getElementById('r-signed-time').style.display = 'block';
+    document.getElementById('r-signed-time-val').textContent = signedAt;
+
+    // File name: YYYY-MM-DD-ProjectID-WorkType-PreparedBy
+    const safeDate = date;
+    const safeName = preparedBy.replace(/[^a-zA-Z0-9]/g, '-');
+    const safeWork = workType.replace(/[^a-zA-Z0-9]/g, '-');
+    const fileName = `${safeDate}-${project.id}-${safeWork}-${safeName}.pdf`;
+    const spFolder = project.spFolder;
+
+    status.textContent = 'Building report PDF...';
+    bar.style.width = '20%';
+
+    // Get logo
+    const logoDataUrl = await getLogoDataUrl();
+
+    // Generate PDF
+    status.textContent = 'Generating PDF...';
+    bar.style.width = '40%';
+    const pdfBase64 = await generateReportPdf(logoDataUrl, project, workType, signedAt);
+
+    // Upload to SharePoint via Worker
+    status.textContent = 'Uploading to SharePoint...';
+    bar.style.width = '70%';
+
+    const res = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        folderName: '',
+        fileName,
+        fileBase64: pdfBase64,
+        fileType: 'application/pdf',
+        customFolder: spFolder
+      })
+    });
+
+    const result = await res.json();
+    if (!res.ok || result.error) throw new Error(result.error || result.detail || 'Upload failed');
+
+    bar.style.width = '100%';
+    status.textContent = 'Report submitted successfully!';
+
+    // Show success
+    document.getElementById('submit-btn').style.display = 'none';
+    const successEl = document.getElementById('alert-success');
+    successEl.style.display = 'block';
+    successEl.innerHTML = `✅ <strong>Report submitted!</strong> Saved as <em>${fileName}</em> in SharePoint → ${spFolder}`;
+    successEl.scrollIntoView({ behavior: 'smooth' });
+
+  } catch(err) {
+    console.error(err);
+    document.getElementById('submit-btn').disabled = false;
+    document.getElementById('submit-progress').style.display = 'none';
+    errEl.style.display = 'block';
+    errEl.textContent = 'Submission failed: ' + (err.message || 'Unknown error. Please try again.');
+  }
+}
+
+// ── GET LOGO ──────────────────────────────────────────────────────────────────
+async function getLogoDataUrl() {
+  try {
+    const res = await fetch('TER-logo.png');
+    const blob = await res.blob();
+    return new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch(e) { return null; }
+}
+
+// ── GENERATE PDF ──────────────────────────────────────────────────────────────
+async function generateReportPdf(logo, project, workType, signedAt) {
+  const doc = new window.jspdf.jsPDF();
+  const navy = [45, 43, 119];
+  const teal = [6, 116, 156];
+  const green = [29, 158, 117];
+  const white = [255, 255, 255];
+
+  // Header
+  doc.setFillColor(...navy);
+  doc.rect(0, 0, 210, 28, 'F');
+  if (logo) { try { doc.addImage(logo, 'PNG', 8, 4, 32, 18); } catch(e) {} }
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(...white);
+  doc.text('Top End Resources', 44, 12);
+  doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+  doc.text('Works Report', 44, 18);
+  doc.setFontSize(10); doc.setFont('helvetica', 'bold');
+  doc.text('WORKS REPORT', 202, 12, { align: 'right' });
+  doc.setFontSize(8); doc.setFont('helvetica', 'normal');
+  doc.text(document.getElementById('r-date').value, 202, 18, { align: 'right' });
+  doc.setFillColor(...teal); doc.rect(0, 28, 210, 2, 'F');
+
+  let y = 36;
+  doc.setTextColor(0, 0, 0);
+
+  // Summary bar
+  doc.setFillColor(240, 244, 248);
+  doc.rect(10, y, 190, 22, 'F');
+  doc.setDrawColor(...teal); doc.rect(10, y, 190, 22, 'S');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...navy);
+  doc.text('PROJECT', 14, y + 6); doc.text('PREPARED BY', 80, y + 6); doc.text('DATE', 150, y + 6);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(0, 0, 0);
+  doc.text(project.name, 14, y + 14);
+  doc.text(document.getElementById('r-preparedby').value, 80, y + 14);
+  doc.text(document.getElementById('r-date').value, 150, y + 14);
+  y += 28;
+
+  function section(title, col) {
+    doc.setFillColor(...(col || navy));
+    doc.rect(10, y, 190, 7, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...white);
+    doc.text(title.toUpperCase(), 14, y + 5);
+    doc.setTextColor(0, 0, 0);
+    return y + 12;
+  }
+
+  function row(label, value) {
+    if (y > 272) { doc.addPage(); y = 20; }
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(90, 106, 122);
+    doc.text(label, 14, y);
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(26, 26, 46);
+    const lines = doc.splitTextToSize(String(value || '—'), 120);
+    doc.text(lines, 80, y);
+    y += lines.length * 5 + 2;
+  }
+
+  // Report Details
+  y = section('Report Details');
+  row('Work Type', workType);
+  row('Location of Works', document.getElementById('r-location').value);
+  row('Weather', document.getElementById('r-weather').value);
+  row('Equipment Used', Array.from(selectedEquipment).map(id => {
+    const e = projectsData.equipment.find(eq => eq.id === id);
+    return e ? `${e.id} — ${e.name}` : id;
+  }).join(', ') || 'None selected');
+  y += 4;
+
+  // Inspection
+  y = section('Safety Inspection');
+  const projectId = document.getElementById('r-project').value;
+  const isRoad = projectId.startsWith('SK') || projectId.startsWith('ST');
+  const questions = isRoad ? INSPECTION_ROAD : INSPECTION_BASE;
+  questions.forEach(q => {
+    const ans = inspectionAnswers[q.id] || 'Not answered';
+    if (y > 272) { doc.addPage(); y = 20; }
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(26, 26, 46);
+    doc.text(q.label, 14, y);
+    const ansColor = ans === 'yes' ? green : [220, 38, 38];
+    doc.setTextColor(...ansColor); doc.setFont('helvetica', 'bold');
+    doc.text(ans.toUpperCase(), 190, y, { align: 'right' });
+    doc.setTextColor(0, 0, 0);
+    y += 6;
+  });
+  y += 4;
+
+  // Works Description
+  y = section('Works Description');
+  const desc = document.getElementById('r-description').value;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(26, 26, 46);
+  const descLines = doc.splitTextToSize(desc, 182);
+  if (y + descLines.length * 5 > 272) { doc.addPage(); y = 20; }
+  doc.text(descLines, 14, y);
+  y += descLines.length * 5 + 6;
+
+  if (yesNoState.damage === 'yes') {
+    row('Damage Reported', document.getElementById('r-damage').value);
+  }
+  if (yesNoState.issues === 'yes') {
+    row('Issues / Delays', document.getElementById('r-issues').value);
+  }
