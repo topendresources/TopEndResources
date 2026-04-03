@@ -236,15 +236,15 @@
       <div class="form-group">
         <label class="form-label">Damage to Report? <span class="req">*</span></label>
         <div class="yn-group">
-          <button type="button" class="yn-btn yes" onclick="setYN('damage','yes',this);document.getElementById('damage-detail').style.display='block'">✓ Yes</button>
-          <button type="button" class="yn-btn no" onclick="setYN('damage','no',this);document.getElementById('damage-detail').style.display='none'">✗ No</button>
+          <button id="yn-damage-yes" type="button" class="yn-btn yes" onclick="setYN('damage','yes',this);document.getElementById('damage-detail').style.display='block'">✓ Yes</button>
+          <button id="yn-damage-no" type="button" class="yn-btn no" onclick="setYN('damage','no',this);document.getElementById('damage-detail').style.display='none'">✗ No</button>
         </div>
       </div>
       <div class="form-group">
         <label class="form-label">Issues or Delays? <span class="req">*</span></label>
         <div class="yn-group">
-          <button type="button" class="yn-btn yes" onclick="setYN('issues','yes',this);document.getElementById('issues-detail').style.display='block'">✓ Yes</button>
-          <button type="button" class="yn-btn no" onclick="setYN('issues','no',this);document.getElementById('issues-detail').style.display='none'">✗ No</button>
+          <button id="yn-issues-yes" type="button" class="yn-btn yes" onclick="setYN('issues','yes',this);document.getElementById('issues-detail').style.display='block'">✓ Yes</button>
+          <button id="yn-issues-no" type="button" class="yn-btn no" onclick="setYN('issues','no',this);document.getElementById('issues-detail').style.display='none'">✗ No</button>
         </div>
       </div>
     </div>
@@ -1078,16 +1078,25 @@ async function restoreFormState() {
       ynState = state.ynState;
       // Restore damage button
       if (ynState.damage) {
-        const damageBtn = document.querySelector('.yn-group button.yn-btn.' + ynState.damage);
+        const damageBtn = document.getElementById('yn-damage-' + ynState.damage);
         if (damageBtn) { damageBtn.classList.add('active'); }
         if (ynState.damage === 'yes') document.getElementById('damage-detail').style.display = 'block';
       }
       // Restore issues button
       if (ynState.issues) {
-        const issuesBtn = document.querySelector('.yn-group button.yn-btn.' + ynState.issues);
+        const issuesBtn = document.getElementById('yn-issues-' + ynState.issues);
         if (issuesBtn) { issuesBtn.classList.add('active'); }
         if (ynState.issues === 'yes') document.getElementById('issues-detail').style.display = 'block';
       }
+    }
+    // Restore inspection answers
+    if (state.inspectionAnswers) {
+      inspectionAnswers = state.inspectionAnswers;
+      Object.keys(inspectionAnswers).forEach(id => {
+        const val = inspectionAnswers[id];
+        const btn = document.querySelector(`#inspection-items button[onclick*="setInspection('${id}','${val}'"]`);
+        if (btn) btn.classList.add('active');
+      });
     }
     // Restore equipment
     if (state.selectedEquipment && state.selectedEquipment.length > 0) {
