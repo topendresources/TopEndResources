@@ -758,6 +758,21 @@ function signOut() {
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 function init() {
+  // ── Offline shortcut: if already logged in, skip network and go straight to dashboard ──
+  if (!navigator.onLine) {
+    const stored = localStorage.getItem('ter_portal_user');
+    if (stored) {
+      try {
+        currentUser = JSON.parse(stored);
+        const today = new Date().toLocaleDateString('en-AU', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+        const el = document.getElementById('dash-date');
+        if (el) el.textContent = today;
+        showDashboard();
+        return;
+      } catch(e) {}
+    }
+  }
+
   loadUsers();
   handleAuthCallback();
   checkStoredToken();
