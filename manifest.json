@@ -1,0 +1,26 @@
+{
+  "name": "Top End Resources Portal",
+  "short_name": "TER Portal",
+  "description": "Top End Resources Staff Portal — Works Reports, Onboarding and more",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#2D2B77",
+  "theme_color": "#2D2B77",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "TER-logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "TER-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "lang": "en-AU"
+}
