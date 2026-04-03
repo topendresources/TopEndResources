@@ -31,7 +31,7 @@
   .header-title { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 18px; color: white; letter-spacing: 0.05em; }
   .header-sub { font-size: 11px; color: rgba(255,255,255,0.7); letter-spacing: 0.1em; text-transform: uppercase; }
 
-  .container { max-width: 860px; margin: 0 auto; padding: 32px 24px 60px; }
+  .container { max-width: 860px; margin: 0 auto; padding: 32px 24px 80px; }
   .page-title { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 32px; color: var(--navy); margin-bottom: 6px; }
   .page-sub { font-size: 14px; color: var(--text-secondary); margin-bottom: 28px; }
 
@@ -96,9 +96,13 @@
   .equip-tags { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
   .equip-tag { background: var(--teal-light); color: var(--teal); border: 1px solid var(--teal); border-radius: 20px; padding: 3px 10px; font-size: 12px; font-weight: 600; }
 
+  .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: 52px; background: var(--surface); border-top: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; z-index: 99; box-shadow: 0 -2px 8px rgba(0,0,0,0.06); }
+  .bottom-nav-back { display: flex; align-items: center; gap: 8px; color: var(--navy); font-size: 13px; font-weight: 600; text-decoration: none; padding: 8px 16px; border-radius: var(--radius-sm); border: 1.5px solid var(--border); background: var(--surface); transition: all 0.15s; }
+  .bottom-nav-back:hover { background: var(--teal-light); border-color: var(--teal); color: var(--teal); }
+
   @media (max-width: 600px) {
     .form-grid { grid-template-columns: 1fr; }
-    .container { padding: 20px 16px 60px; }
+    .container { padding: 20px 16px 80px; }
     .header { padding: 0 16px; }
   }
 </style>
@@ -820,27 +824,13 @@ async function submitReport() {
     result = await res.json();
     if (!res.ok || result.error) throw new Error(result.error || 'Upload failed');
 
-    setProgress(70, 'Uploading photos...');
-    let photoCount = 0;
-    for (let i = 0; i < photoFiles.length; i++) {
-      if (!photoFiles[i]) continue;
-      photoCount++;
-      const ext = photoFiles[i].name.split('.').pop() || 'jpg';
-      const b64 = await fileToBase64(photoFiles[i]);
-      await fetch(WORKER_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ folderName: folderPath, fileName: reportName + '-Photo' + photoCount + '.' + ext, fileBase64: b64, fileType: photoFiles[i].type || 'image/jpeg', createPath: false })
-      });
-      setProgress(70 + (photoCount / Math.max(photoFiles.filter(Boolean).length, 1)) * 25, 'Uploading photo ' + photoCount + '...');
-    }
-
     setProgress(100, 'Complete!');
     await sleep(400);
     clearFormDraft();
     document.getElementById('form-view').style.display = 'none';
     document.getElementById('success-view').style.display = 'block';
-    document.getElementById('success-detail').innerHTML = 'Report saved to:<br><strong>' + folderPath + '/' + reportName + '.pdf</strong>' + (photoCount > 0 ? '<br>' + photoCount + ' photo(s) uploaded.' : '');
+    const photoCount = photoFiles.filter(Boolean).length;
+    document.getElementById('success-detail').innerHTML = 'Report saved to:<br><strong>' + folderPath + '/' + reportName + '.pdf</strong>' + (photoCount > 0 ? '<br>' + photoCount + ' photo(s) embedded in PDF.' : '');
 
   } catch(err) {
     btn.disabled = false;
@@ -1182,5 +1172,8 @@ if ('serviceWorker' in navigator) {
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 </script>
+<div class="bottom-nav">
+  <a class="bottom-nav-back" href="index.html">&#8592; Dashboard</a>
+</div>
 </body>
 </html>
