@@ -721,18 +721,19 @@ let gpsCoords = null;
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 window.addEventListener('load', async () => {
+  // Set today's date
   try {
-    // Set today's date
     document.getElementById('r-date').value = new Date().toISOString().split('T')[0];
+  } catch(err) { console.error('[Init] date:', err); }
 
-    // Get user from portal session
+  // Get user from portal session
+  try {
     const stored = localStorage.getItem('ter_portal_user') || sessionStorage.getItem('ter_portal_user');
     if (stored) { try { currentUser = JSON.parse(stored); } catch(e) {} }
     if (!currentUser) currentUser = { name: '', role: 'worker' };
 
     const prepField = document.getElementById('r-preparedby');
     if (!currentUser.name || currentUser.name === 'Unknown User') {
-      // No session — make field editable
       prepField.removeAttribute('readonly');
       prepField.style.background = '';
       prepField.placeholder = 'Enter your full name';
@@ -746,35 +747,46 @@ window.addEventListener('load', async () => {
       document.getElementById('r-sign-name').textContent = currentUser.name;
       document.getElementById('header-user').textContent = currentUser.name;
     }
+  } catch(err) { console.error('[Init] user session:', err); }
 
-    // Load projects (uses bundled data if offline)
+  // Load projects (uses bundled PROJECTS_INLINE if offline)
+  try {
     await loadProjects();
+  } catch(err) { console.error('[Init] loadProjects:', err); }
 
-    // Render inspection questions
+  // Render inspection questions
+  try {
     renderInspection([
       { id: 'swms', label: 'SWMS in place for all tasks?' },
       { id: 'enviro', label: 'Environmental provisions in place?' },
       { id: 'equip-order', label: 'Equipment in good working order?' },
     ]);
+  } catch(err) { console.error('[Init] renderInspection:', err); }
 
-    // Render equipment dropdown
+  // Render equipment dropdown
+  try {
     renderEquipment();
+  } catch(err) { console.error('[Init] renderEquipment:', err); }
 
-    // Add first photo slot
+  // Add first photo slot
+  try {
     addPhotoSlot();
+  } catch(err) { console.error('[Init] addPhotoSlot:', err); }
 
-    // Init signature pad
+  // Init signature pad
+  try {
     initSig();
+  } catch(err) { console.error('[Init] initSig:', err); }
 
-    // Request GPS
+  // Request GPS
+  try {
     requestGPS();
+  } catch(err) { console.error('[Init] requestGPS:', err); }
 
-    // Restore any saved draft
+  // Restore any saved draft
+  try {
     await restoreFormState();
-
-  } catch(err) {
-    console.error('[Init Error]', err);
-  }
+  } catch(err) { console.error('[Init] restoreFormState:', err); }
 });
 
 // ── PROJECTS ──────────────────────────────────────────────────────────────────
@@ -1574,7 +1586,7 @@ if ('serviceWorker' in navigator) {
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 </script>
 <div class="bottom-nav">
-  <a class="bottom-nav-back" href="index.html">&#8592; Dashboard</a>
+  <a class="bottom-nav-back" href="index.html" onclick="if(!navigator.onLine){event.preventDefault();alert('You are offline — Dashboard requires an internet connection.');}">&#8592; Dashboard</a>
 </div>
 </body>
 </html>
