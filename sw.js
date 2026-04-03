@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ter-portal-v3';
+const CACHE_NAME = 'ter-portal-v4';
 
 // All files to cache on first load
 const CACHE_ASSETS = [
@@ -10,7 +10,7 @@ const CACHE_ASSETS = [
   '/projects.json',
   '/users.json',
   '/TER-logo.png',
-  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+  // jsPDF is now embedded inline — no CDN dependency
   'https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@300;400;500;600&display=swap',
 ];
 
