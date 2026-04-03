@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ter-portal-v4';
+const CACHE_NAME = 'ter-portal-v5';
 
 // All files to cache on first load
 const CACHE_ASSETS = [

@@ -1437,7 +1437,7 @@ if ('serviceWorker' in navigator) {
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 </script>
 <div class="bottom-nav">
-  <a class="bottom-nav-back" href="index.html">&#8592; Dashboard</a>
+  <a class="bottom-nav-back" href="index.html" onclick="if(!navigator.onLine){event.preventDefault();alert('You are offline — Dashboard requires an internet connection.');}">&#8592; Dashboard</a>
 </div>
 </body>
 </html>
