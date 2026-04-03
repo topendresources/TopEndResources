@@ -647,6 +647,7 @@ async function loadMicrosoftUser(token) {
     const firstName = (data.displayName || data.userPrincipalName || '').split(' ')[0];
     currentUser = { name: data.displayName || data.userPrincipalName, firstName, role: 'supervisor', msToken: token };
     localStorage.setItem('ter_portal_user', JSON.stringify(currentUser));
+    localStorage.setItem('ter_credential_hash', 'ms_auth');
     // Check if admin email
     if ((data.userPrincipalName || '').toLowerCase().includes('ryan') || (data.userPrincipalName || '').toLowerCase().includes('admin') || (data.userPrincipalName || '').toLowerCase().endsWith('@ternt.com.au')) {
       currentUser.role = 'admin';
@@ -679,6 +680,7 @@ function credLogin() {
   }
   currentUser = { ...user };
   localStorage.setItem('ter_portal_user', JSON.stringify(currentUser));
+  localStorage.setItem('ter_credential_hash', btoa(id + ':' + pass));
   showDashboard();
 }
 
@@ -701,7 +703,7 @@ function showDashboard() {
   // Render apps based on role
   const apps = ALL_APPS.filter(a => a.roles.includes(currentUser.role));
   document.getElementById('app-grid').innerHTML = apps.map(a => `
-    <a class="app-card ${a.status === 'soon' ? 'locked' : ''}" 
+    <a class="app-card ${a.status === 'soon' ? 'locked' : ''}"
        ${a.status === 'live' ? (a.onclick ? `href='#' onclick='${a.onclick};return false;'` : `href="${a.url}" target="_blank"`) : 'onclick="return false"'}>
       <span class="app-icon">${a.icon}</span>
       <div class="app-name">${a.name}</div>
@@ -709,6 +711,37 @@ function showDashboard() {
       <div class="app-status ${a.status === 'live' ? 'live' : 'soon'}">${a.status === 'live' ? 'Live' : 'Coming soon'}</div>
     </a>
   `).join('');
+
+  // Pre-cache all app assets and store projects data for seamless offline use
+  if (navigator.onLine) {
+    cacheAppAssets();
+    storeProjectsLocally();
+  }
+}
+
+// ── OFFLINE PRE-CACHING ───────────────────────────────────────────────────────
+async function cacheAppAssets() {
+  if (!('caches' in window)) return;
+  try {
+    const cache = await caches.open('ter-portal-v6');
+    const assets = ['/', '/index.html', '/worksreport.html', '/supervisorreport.html', '/projects.json', '/users.json', '/TER-logo.png'];
+    await Promise.allSettled(assets.map(url => cache.add(url).catch(e => console.warn('[Cache] Failed:', url, e))));
+    console.log('[Cache] App assets pre-cached on login');
+  } catch(e) {
+    console.warn('[Cache] Pre-cache failed:', e);
+  }
+}
+
+async function storeProjectsLocally() {
+  try {
+    const res = await fetch('projects.json?v=' + Date.now());
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    localStorage.setItem('ter_projects_data', JSON.stringify(data));
+    console.log('[Login] projects.json stored in localStorage');
+  } catch(e) {
+    console.warn('[Login] Could not store projects.json:', e);
+  }
 }
 
 function signOut() {

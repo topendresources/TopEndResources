@@ -762,10 +762,24 @@ window.addEventListener('load', async () => {
 // ── PROJECTS ──────────────────────────────────────────────────────────────────
 async function loadProjects() {
   try {
-    const res = await fetch('projects.json?v=' + Date.now());
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    projectsData = await res.json();
-    console.log('Projects loaded from network:', projectsData.projects.length, 'projects');
+    // 1. Check localStorage first (stored on login for instant offline access)
+    const stored = localStorage.getItem('ter_projects_data');
+    if (stored) {
+      projectsData = JSON.parse(stored);
+      console.log('Projects loaded from localStorage cache:', projectsData.projects.length, 'projects');
+      // Refresh in background if online
+      if (navigator.onLine) {
+        fetch('projects.json').then(r => r.json()).then(d => {
+          localStorage.setItem('ter_projects_data', JSON.stringify(d));
+        }).catch(() => {});
+      }
+    } else {
+      // 2. Try network
+      const res = await fetch('projects.json?v=' + Date.now());
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      projectsData = await res.json();
+      console.log('Projects loaded from network:', projectsData.projects.length, 'projects');
+    }
   } catch(e) {
     console.log('Using bundled project data (offline mode)');
     projectsData = PROJECTS_INLINE;
