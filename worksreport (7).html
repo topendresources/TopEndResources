@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Top End Resources — Works Report</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root {
+    --navy: #2D2B77; --teal: #06749C; --teal-light: #E8F4F9;
+    --green: #1D9E75; --green-light: #E1F5EE;
+    --amber: #F59E0B; --red: #DC2626; --red-light: #FEE2E2;
+    --bg: #F0F4F8; --surface: #FFFFFF; --border: #E0E7EF;
+    --text: #1A1A2E; --text-secondary: #5A6A7A; --text-hint: #9CA3AF;
+    --radius: 12px; --radius-sm: 8px;
+    --gradient: linear-gradient(135deg, #2D2B77, #06749C);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Barlow', sans-serif; background: var(--bg); color: var(--text); font-size: 15px; min-height: 100vh; }
+
+  .header { background: var(--gradient); padding: 0 32px; display: flex; align-items: center; justify-content: space-between; height: 64px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 12px rgba(45,43,119,0.3); }
+  .header-logo { display: flex; align-items: center; gap: 12px; }
+  .header-logo img { height: 36px; }
+  .header-title { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 18px; color: white; letter-spacing: 0.05em; }
+  .header-sub { font-size: 11px; color: rgba(255,255,255,0.7); letter-spacing: 0.1em; text-transform: uppercase; }
+
+  .container { max-width: 860px; margin: 0 auto; padding: 32px 24px 60px; }
+  .page-title { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 32px; color: var(--navy); margin-bottom: 6px; }
+  .page-sub { font-size: 14px; color: var(--text-secondary); margin-bottom: 28px; }
+
+  .card { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); padding: 24px; margin-bottom: 20px; }
+  .card-title { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 18px; color: var(--navy); margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+  .card-icon { width: 36px; height: 36px; border-radius: 8px; background: var(--gradient); display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .form-grid.full { grid-template-columns: 1fr; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.06em; }
+  .req { color: var(--red); margin-left: 2px; }
+
+  input, select, textarea {
+    font-size: 14px; padding: 11px 14px;
+    border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+    background: var(--surface); color: var(--text); width: 100%;
+    font-family: inherit; transition: all 0.15s;
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(6,116,156,0.1); }
+  textarea { resize: vertical; min-height: 100px; }
+  select[multiple] { padding: 6px; min-height: 160px; }
+
+  .yn-group { display: flex; gap: 8px; }
+  .yn-btn { flex: 1; padding: 10px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-secondary); font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; text-align: center; font-family: inherit; }
+  .yn-btn.yes.active { background: var(--green-light); border-color: var(--green); color: #0F6E56; }
+  .yn-btn.no.active { background: var(--red-light); border-color: var(--red); color: var(--red); }
+
+  .char-count { font-size: 11px; color: var(--text-hint); text-align: right; margin-top: 3px; }
+  .char-count.warn { color: var(--amber); }
+  .char-count.ok { color: var(--green); }
+
+  .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin-bottom: 12px; }
+  .photo-slot { aspect-ratio: 1; border: 2px dashed var(--border); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 6px; cursor: pointer; position: relative; overflow: hidden; background: var(--bg); transition: all 0.2s; }
+  .photo-slot:hover { border-color: var(--teal); background: var(--teal-light); }
+  .photo-slot.has-photo { border-style: solid; border-color: var(--green); }
+  .photo-slot img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .photo-slot input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .photo-slot-label { font-size: 11px; color: var(--text-hint); text-align: center; z-index: 1; }
+  .add-photo-btn { width: 100%; padding: 12px; border: 2px dashed var(--teal); border-radius: var(--radius-sm); background: var(--teal-light); color: var(--teal); font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; margin-bottom: 10px; }
+
+  .sig-wrap { border: 1.5px solid var(--border); border-radius: var(--radius-sm); background: #fff; position: relative; }
+  .sig-wrap canvas { width: 100%; height: 130px; display: block; cursor: crosshair; border-radius: var(--radius-sm); }
+  .sig-clear { position: absolute; top: 8px; right: 8px; font-size: 11px; padding: 4px 10px; background: rgba(0,0,0,0.06); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; color: var(--text-secondary); font-family: inherit; }
+
+  .alert-error { background: var(--red-light); color: var(--red); border: 1px solid #FCA5A5; border-radius: var(--radius-sm); padding: 12px 16px; font-size: 13px; margin-bottom: 16px; display: none; }
+  .alert-info { background: var(--teal-light); color: var(--teal); border: 1px solid #85B7EB; border-radius: var(--radius-sm); padding: 12px 16px; font-size: 13px; margin-bottom: 12px; }
+
+  .btn-submit { width: 100%; padding: 16px; background: var(--gradient); color: white; border: none; border-radius: var(--radius-sm); font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 20px; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; transition: all 0.2s; }
+  .btn-submit:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(45,43,119,0.3); }
+  .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .progress-wrap { background: var(--border); border-radius: 99px; height: 8px; margin: 16px 0 8px; overflow: hidden; display: none; }
+  .progress-fill { height: 8px; border-radius: 99px; background: var(--gradient); transition: width 0.4s; width: 0%; }
+  .progress-label { font-size: 12px; color: var(--text-secondary); text-align: center; }
+
+  .success-box { text-align: center; padding: 40px 20px; display: none; }
+  .success-icon { font-size: 64px; margin-bottom: 16px; }
+  .success-title { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 32px; color: var(--navy); margin-bottom: 8px; }
+  .success-sub { font-size: 14px; color: var(--text-secondary); }
+
+  .equip-tags { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .equip-tag { background: var(--teal-light); color: var(--teal); border: 1px solid var(--teal); border-radius: 20px; padding: 3px 10px; font-size: 12px; font-weight: 600; }
+
+  @media (max-width: 600px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .container { padding: 20px 16px 60px; }
+    .header { padding: 0 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-logo">
+    <img src="TER-logo.png" alt="TER" onerror="this.style.display='none'">
+    <div>
+      <div class="header-title">Top End Resources</div>
+      <div class="header-sub">Works Report</div>
+    </div>
+  </div>
+  <div id="header-user" style="font-size:12px;color:rgba(255,255,255,0.7)"></div>
+</div>
+
+<div class="container">
+<div id="form-view">
+  <div class="page-title">Works Report</div>
+  <div class="page-sub">Complete all required fields and submit at end of shift. Photos are mandatory.</div>
+
+  <div id="main-error" class="alert-error"></div>
+
+  <!-- ── 1. REPORT DETAILS ── -->
+  <div class="card">
+    <div class="card-title"><div class="card-icon">📋</div>Report Details</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Date <span class="req">*</span></label>
+        <input type="date" id="r-date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Prepared By</label>
+        <input type="text" id="r-preparedby" readonly style="background:var(--bg)">
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Project <span class="req">*</span></label>
+        <select id="r-project" onchange="onProjectChange();saveFormState()">
+          <option value="">Select project...</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Work Type <span class="req">*</span></label>
+        <select id="r-worktype" disabled>
+          <option value="">Select project first...</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Group / Region <span class="req">*</span></label>
+        <select id="r-group" disabled onchange="onGroupChange()">
+          <option value="">Select project first...</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Location of Works <span class="req">*</span></label>
+        <select id="r-location" disabled>
+          <option value="">Select group first...</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Weather Conditions <span class="req">*</span></label>
+        <select id="r-weather" onchange="saveFormState()">
+          <option value="">Select...</option>
+          <option>Fine &amp; Clear</option>
+          <option>Partly Cloudy</option>
+          <option>Overcast</option>
+          <option>Light Rain</option>
+          <option>Heavy Rain</option>
+          <option>Extreme Heat</option>
+          <option>High Wind</option>
+          <option>Dust Storm</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Additional Location Notes</label>
+        <input type="text" id="r-location-notes" placeholder="e.g. Chainage 45+200, northern end">
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 2. SAFETY INSPECTION ── -->
+  <div class="card">
+    <div class="card-title"><div class="card-icon">🦺</div>Safety Inspection</div>
+    <div class="alert-info">All inspection items must be answered before submitting.</div>
+    <div id="inspection-items">
+      <!-- populated by JS -->
+    </div>
+  </div>
+
+  <!-- ── 3. EQUIPMENT USED ── -->
+  <div class="card">
+    <div class="card-title"><div class="card-icon">🚜</div>Equipment Used Today</div>
+    <div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">Select all plant and equipment used on site today. Hold Ctrl / Cmd to select multiple.</div>
+    <div class="form-group">
+      <label class="form-label">Equipment Used <span class="req">*</span></label>
+      <div style="position:relative">
+        <div id="equip-dropdown-btn" onclick="toggleEquipDropdown()" style="font-size:14px;padding:11px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);width:100%;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;">
+          <span id="equip-btn-label" style="color:var(--text-hint)">Select equipment...</span>
+          <span>▾</span>
+        </div>
+        <div id="equip-dropdown-list" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:200;background:var(--surface);border:1.5px solid var(--teal);border-radius:var(--radius-sm);max-height:260px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,0.12);">
+          <!-- populated by JS -->
+        </div>
+      </div>
+      <div class="equip-tags" id="equip-tags" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;"></div>
+    </div>
+  </div>
+
+  <!-- ── 4. WORKS DESCRIPTION ── -->
+  <div class="card">
+    <div class="card-title"><div class="card-icon">📝</div>Works Description</div>
+    <div class="form-group" style="margin-bottom:16px">
+      <label class="form-label">Description of Works Performed <span class="req">*</span></label>
+      <textarea id="r-works-desc" placeholder="Describe the works performed today — location, quantity, method, progress achieved..." style="min-height:120px" oninput="updateWordCount(this,'r-works-count',10);saveFormState()"></textarea>
+      <div class="char-count" id="r-works-count">0 words — minimum 10 required</div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Damage to Report? <span class="req">*</span></label>
+        <div class="yn-group">
+          <button type="button" class="yn-btn yes" onclick="setYN('damage','yes',this);document.getElementById('damage-detail').style.display='block'">✓ Yes</button>
+          <button type="button" class="yn-btn no" onclick="setYN('damage','no',this);document.getElementById('damage-detail').style.display='none'">✗ No</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Issues or Delays? <span class="req">*</span></label>
+        <div class="yn-group">
+          <button type="button" class="yn-btn yes" onclick="setYN('issues','yes',this);document.getElementById('issues-detail').style.display='block'">✓ Yes</button>
+          <button type="button" class="yn-btn no" onclick="setYN('issues','no',this);document.getElementById('issues-detail').style.display='none'">✗ No</button>
+        </div>
+      </div>
+    </div>
+    <div id="damage-detail" style="display:none;margin-top:12px">
+      <div class="form-group">
+        <label class="form-label">Damage Description <span class="req">*</span></label>
+        <textarea id="r-damage-desc" placeholder="Describe the damage, equipment involved and circumstances..."></textarea>
+      </div>
+    </div>
+    <div id="issues-detail" style="display:none;margin-top:12px">
+      <div class="form-group">
+        <label class="form-label">Issues / Delays Description <span class="req">*</span></label>
+        <textarea id="r-issues-desc" placeholder="Describe any issues, delays or follow-up required..."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 5. PHOTOS ── -->
+  <div class="card">
+    <div class="card-title"><div class="card-icon">📷</div>Work Photos <span style="font-size:12px;font-weight:400;color:var(--text-secondary);margin-left:8px">Minimum 1 required</span></div>
+    <button type="button" class="add-photo-btn" onclick="addPhotoSlot()">📷 + Add Photo</button>
+    <div class="photo-grid" id="photo-grid"></div>
+    <div id="gps-status" style="font-size:11px;color:var(--text-hint);margin-top:8px"></div>
+  </div>
+
+  <!-- ── 6. DECLARATION ── -->
+  <div class="card">
+    <div class="card-title"><div class="card-icon">✍️</div>Declaration &amp; Signature</div>
+    <div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">I declare that the information in this Works Report is true and correct to the best of my knowledge.</div>
+    <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin-bottom:16px">
+      <input type="checkbox" id="r-declare" style="width:18px;height:18px;flex-shrink:0;margin-top:2px;accent-color:var(--teal)">
+      <span style="font-size:13px">I, <strong id="r-sign-name">—</strong>, declare this report is true and correct.</span>
+    </label>
+    <label class="form-label" style="margin-bottom:6px">Signature <span class="req">*</span></label>
+    <div class="sig-wrap">
+      <canvas id="r-sig-canvas"></canvas>
+      <button type="button" class="sig-clear" onclick="clearSig()">Clear</button>
+    </div>
+    <div style="font-size:11px;color:var(--text-hint);margin-top:4px">Sign using your mouse or finger</div>
+  </div>
+
+  <div id="submit-error" class="alert-error"></div>
+  <button class="btn-submit" id="submit-btn" onclick="submitReport()">🚀 Submit Works Report</button>
+  <div class="progress-wrap" id="progress-wrap">
+    <div class="progress-fill" id="progress-fill"></div>
+  </div>
+  <div class="progress-label" id="progress-label"></div>
+</div>
+
+<!-- SUCCESS -->
+<div class="success-box" id="success-view">
+  <div class="success-icon">✅</div>
+  <div class="success-title">Report Submitted!</div>
+  <div class="success-sub" id="success-detail"></div>
+  <button onclick="location.reload()" style="margin-top:20px;padding:12px 32px;background:var(--gradient);color:#fff;border:none;border-radius:var(--radius-sm);font-family:inherit;font-size:14px;font-weight:600;cursor:pointer">Submit Another Report</button>
+</div>
+</div>
+
+<script>
+const WORKER_URL = 'https://teronboarding.ryan-wojtowicz525.workers.dev';
+let projectsData = { projects: [], equipment: [] };
+let currentUser = null;
+let ynState = {};
+let inspectionAnswers = {};
+let photoFiles = [];
+let photoMeta = [];
+let gpsCoords = null;
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+window.addEventListener('load', async () => {
+  document.getElementById('r-date').value = new Date().toISOString().split('T')[0];
+
+  const stored = localStorage.getItem('ter_portal_user') || sessionStorage.getItem('ter_portal_user');
+  if (stored) { try { currentUser = JSON.parse(stored); } catch(e) {} }
+  if (!currentUser) currentUser = { name: 'Unknown User', role: 'worker' };
+
+  document.getElementById('r-preparedby').value = currentUser.name;
+  document.getElementById('header-user').textContent = currentUser.name;
+  document.getElementById('r-sign-name').textContent = currentUser.name;
+
+  await loadProjects();
+  renderInspection([
+    { id: 'swms', label: 'SWMS in place for all tasks?' },
+    { id: 'enviro', label: 'Environmental provisions in place?' },
+    { id: 'equip-order', label: 'Equipment in good working order?' },
+  ]);
+  renderEquipment();
+  addPhotoSlot();
+  initSig();
+  requestGPS();
+  await restoreFormState();
+});
+
+// ── PROJECTS ──────────────────────────────────────────────────────────────────
+async function loadProjects() {
+  try {
+    const res = await fetch('projects.json?v=' + Date.now());
+    projectsData = await res.json();
+  } catch(e) { projectsData = { projects: [], equipment: [] }; }
+  const sel = document.getElementById('r-project');
+  projectsData.projects.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.id; opt.textContent = p.name;
+    sel.appendChild(opt);
+  });
+}
+
+function onProjectChange() {
+  const projectId = document.getElementById('r-project').value;
+  const wtSel = document.getElementById('r-worktype');
+  const grpSel = document.getElementById('r-group');
+  const locSel = document.getElementById('r-location');
+
+  wtSel.innerHTML = '<option value="">Select work type...</option>';
+  grpSel.innerHTML = '<option value="">Select group/region...</option>';
+  locSel.innerHTML = '<option value="">Select group first...</option>';
+  wtSel.disabled = !projectId;
+  grpSel.disabled = !projectId;
+  locSel.disabled = true;
+
+  if (!projectId) return;
+  const project = projectsData.projects.find(p => p.id === projectId);
+  if (!project) return;
+
+  project.workTypes.forEach(wt => {
+    const opt = document.createElement('option');
+    opt.value = wt; opt.textContent = wt;
+    wtSel.appendChild(opt);
+  });
+
+  const groups = project.groups || {};
+  const groupKeys = Object.keys(groups);
+  if (groupKeys.length === 1) {
+    grpSel.innerHTML = '<option value="' + groupKeys[0] + '">' + groupKeys[0] + '</option>';
+    grpSel.disabled = true;
+    onGroupChange();
+  } else {
+    groupKeys.forEach(g => {
+      const opt = document.createElement('option');
+      opt.value = g; opt.textContent = g;
+      grpSel.appendChild(opt);
+    });
+  }
+
+  // Traffic control for road projects
+  const isRoad = project.hasTrafficControl;
+  const baseQ = [
+    { id: 'swms', label: 'SWMS in place for all tasks?' },
+    { id: 'enviro', label: 'Environmental provisions in place?' },
+    { id: 'equip-order', label: 'Equipment in good working order?' },
+  ];
+  if (isRoad) {
+    baseQ.push({ id: 'traffic', label: 'Traffic control provisions in place?' });
+    baseQ.push({ id: 'road-condition', label: 'Road in safe condition after end of shift?' });
+  }
+  renderInspection(baseQ);
+}
+
+function onGroupChange() {
+  const projectId = document.getElementById('r-project').value;
+  const groupId = document.getElementById('r-group').value;
+  const locSel = document.getElementById('r-location');
+  locSel.innerHTML = '<option value="">Select location...</option>';
+  locSel.disabled = !groupId;
+  if (!projectId || !groupId) return;
+  const project = projectsData.projects.find(p => p.id === projectId);
+  if (!project) return;
+  const locations = (project.groups || {})[groupId] || [];
+  locations.forEach(loc => {
+    const opt = document.createElement('option');
+    opt.value = loc; opt.textContent = loc;
+    locSel.appendChild(opt);
+  });
+}
+
+// ── INSPECTION ────────────────────────────────────────────────────────────────
+function renderInspection(questions) {
+  inspectionAnswers = {};
+  const container = document.getElementById('inspection-items');
+  container.innerHTML = questions.map(q => `
+    <div style="margin-bottom:14px">
+      <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px">${q.label} <span class="req">*</span></div>
+      <div class="yn-group">
+        <button type="button" class="yn-btn yes" onclick="setInspection('${q.id}','yes',this)">✓ Yes</button>
+        <button type="button" class="yn-btn no" onclick="setInspection('${q.id}','no',this)">✗ No</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function setInspection(id, val, btn) {
+  inspectionAnswers[id] = val;
+  btn.closest('.yn-group').querySelectorAll('.yn-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+
+// ── EQUIPMENT DROPDOWN ────────────────────────────────────────────────────────
+let selectedEquipment = new Set();
+
+function renderEquipment() {
+  const list = document.getElementById('equip-dropdown-list');
+  if (!list) return;
+  list.innerHTML = '';
+  projectsData.equipment.forEach(e => {
+    if (!e.name || e.name === 'Unassigned') return;
+    const label = e.id + ' — ' + e.name + (e.rego ? ' (' + e.rego + ')' : '');
+    const item = document.createElement('div');
+    item.style.cssText = 'padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;font-size:13px;border-bottom:1px solid var(--border);transition:background 0.1s;';
+    item.onmouseover = () => item.style.background = 'var(--teal-light)';
+    item.onmouseout = () => item.style.background = selectedEquipment.has(e.id) ? 'var(--teal-light)' : '';
+    item.dataset.id = e.id;
+    item.dataset.label = label;
+    item.innerHTML = '<span style="width:18px;height:18px;border:2px solid var(--border);border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;" id="equip-chk-'+e.id+'"></span><span>'+label+'</span>';
+    item.onclick = () => toggleEquipItem(e.id, label, item);
+    list.appendChild(item);
+  });
+}
+
+function toggleEquipItem(id, label, item) {
+  if (selectedEquipment.has(id)) {
+    selectedEquipment.delete(id);
+    item.style.background = '';
+    document.getElementById('equip-chk-' + id).textContent = '';
+    document.getElementById('equip-chk-' + id).style.borderColor = 'var(--border)';
+  } else {
+    selectedEquipment.add(id);
+    item.style.background = 'var(--teal-light)';
+    document.getElementById('equip-chk-' + id).textContent = '✓';
+    document.getElementById('equip-chk-' + id).style.borderColor = 'var(--teal)';
+    document.getElementById('equip-chk-' + id).style.color = 'var(--teal)';
+  }
+  updateEquipDisplay();
+}
+
+function updateEquipDisplay() {
+  const tags = document.getElementById('equip-tags');
+  const btn = document.getElementById('equip-btn-label');
+  if (selectedEquipment.size === 0) {
+    btn.textContent = 'Select equipment...';
+    btn.style.color = 'var(--text-hint)';
+    if (tags) tags.innerHTML = '';
+  } else {
+    btn.textContent = selectedEquipment.size + ' item' + (selectedEquipment.size > 1 ? 's' : '') + ' selected';
+    btn.style.color = 'var(--text)';
+    if (tags) {
+      const allItems = document.querySelectorAll('#equip-dropdown-list [data-id]');
+      tags.innerHTML = '';
+      allItems.forEach(item => {
+        if (selectedEquipment.has(item.dataset.id)) {
+          const tag = document.createElement('span');
+          tag.className = 'equip-tag';
+          tag.textContent = item.dataset.label;
+          tags.appendChild(tag);
+        }
+      });
+    }
+  }
+}
+
+function toggleEquipDropdown() {
+  const list = document.getElementById('equip-dropdown-list');
+  list.style.display = list.style.display === 'none' ? 'block' : 'none';
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', e => {
+  const btn = document.getElementById('equip-dropdown-btn');
+  const list = document.getElementById('equip-dropdown-list');
+  if (btn && list && !btn.contains(e.target) && !list.contains(e.target)) {
+    list.style.display = 'none';
+  }
+});
+
+function getSelectedEquipment() {
+  const allItems = document.querySelectorAll('#equip-dropdown-list [data-id]');
+  const result = [];
+  allItems.forEach(item => { if (selectedEquipment.has(item.dataset.id)) result.push(item.dataset.label); });
+  return result;
+}
+
+
+// ── YES/NO ────────────────────────────────────────────────────────────────────
+function setYN(key, val, btn) {
+  ynState[key] = val;
+  btn.closest('.yn-group').querySelectorAll('.yn-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// ── WORD COUNT ────────────────────────────────────────────────────────────────
+function updateWordCount(el, countId, min) {
+  const words = el.value.trim().split(/\s+/).filter(Boolean).length;
+  const div = document.getElementById(countId);
+  if (!div) return;
+  if (words >= min) {
+    div.textContent = '✓ ' + words + ' words';
+    div.className = 'char-count ok';
+  } else {
+    div.textContent = (min - words) + ' more words needed';
+    div.className = 'char-count' + (words > min * 0.6 ? ' warn' : '');
+  }
+}
+
+// ── PHOTOS ────────────────────────────────────────────────────────────────────
+function requestGPS() {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(pos => {
+      gpsCoords = { lat: pos.coords.latitude.toFixed(6), lng: pos.coords.longitude.toFixed(6), acc: Math.round(pos.coords.accuracy) };
+      document.getElementById('gps-status').textContent = '📍 GPS: ' + gpsCoords.lat + ', ' + gpsCoords.lng + ' (±' + gpsCoords.acc + 'm)';
+    }, () => {
+      document.getElementById('gps-status').textContent = '📍 GPS unavailable — project location will be used.';
+    });
+  }
+}
+
+function addPhotoSlot() {
+  const idx = photoFiles.length;
+  photoFiles.push(null);
+  const slot = document.createElement('div');
+  slot.className = 'photo-slot';
+  slot.id = 'photo-slot-' + idx;
+  slot.innerHTML = `
+    <input type="file" accept="image/*" capture="environment" onchange="handlePhoto(this,${idx})">
+    <div style="font-size:28px;z-index:1">📷</div>
+    <div class="photo-slot-label">Photo ${idx+1}</div>`;
+  document.getElementById('photo-grid').appendChild(slot);
+}
+
+
+// ── BAKE TIMESTAMP INTO PHOTO ─────────────────────────────────────────────────
+function bakeTimestamp(file, timestamp, gps) {
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+
+        // Timestamp bar at bottom
+        const barH = Math.max(48, img.height * 0.06);
+        ctx.fillStyle = 'rgba(0,0,0,0.65)';
+        ctx.fillRect(0, img.height - barH, img.width, barH);
+
+        // Text sizing
+        const fontSize = Math.max(16, barH * 0.38);
+        ctx.font = `bold ${fontSize}px Arial, sans-serif`;
+        ctx.fillStyle = '#ffffff';
+        ctx.textBaseline = 'middle';
+        const midY = img.height - barH / 2;
+
+        // Left: TER logo text
+        ctx.fillStyle = '#06749C';
+        ctx.fillText('TOP END RESOURCES', img.width * 0.02, midY - fontSize * 0.6);
+        ctx.fillStyle = '#ffffff';
+
+        // Timestamp
+        ctx.font = `${fontSize}px Arial, sans-serif`;
+        ctx.fillText(timestamp, img.width * 0.02, midY + fontSize * 0.4);
+
+        // Right: GPS if available
+        if (gps && gps !== 'GPS unavailable') {
+          ctx.font = `${Math.max(12, fontSize * 0.75)}px Arial, sans-serif`;
+          ctx.fillStyle = 'rgba(255,255,255,0.8)';
+          ctx.textAlign = 'right';
+          ctx.fillText('GPS: ' + gps, img.width * 0.98, midY);
+          ctx.textAlign = 'left';
+        }
+
+        canvas.toBlob(blob => {
+          resolve(new File([blob], file.name, { type: 'image/jpeg' }));
+        }, 'image/jpeg', 0.92);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handlePhoto(input, idx) {
+  const file = input.files[0];
+  if (!file) return;
+  const ts = new Date().toLocaleString('en-AU');
+  const gps = gpsCoords ? gpsCoords.lat + ',' + gpsCoords.lng : 'GPS unavailable';
+  photoMeta[idx] = { timestamp: ts, gps };
+
+  // Bake timestamp into the photo
+  const stamped = await bakeTimestamp(file, ts, gps);
+  photoFiles[idx] = stamped;
+
+  const slot = document.getElementById('photo-slot-' + idx);
+  slot.classList.add('has-photo');
+  const reader = new FileReader();
+  reader.onload = e => {
+    const existing = slot.querySelector('img');
+    if (existing) existing.remove();
+    const img = document.createElement('img');
+    img.src = e.target.result;
+    slot.insertBefore(img, slot.firstChild);
+    const lbl = slot.querySelector('.photo-slot-label');
+    if (lbl) lbl.textContent = '✅ ' + ts;
+  };
+  reader.readAsDataURL(stamped);
+}
+
+// ── SIGNATURE ─────────────────────────────────────────────────────────────────
+function initSig() {
+  const canvas = document.getElementById('r-sig-canvas');
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = (rect.width || 800) * 2;
+  canvas.height = 260;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = '#1A1A2E'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  let drawing = false;
+  function pos(e) {
+    const r = canvas.getBoundingClientRect();
+    const src = e.touches ? e.touches[0] : e;
+    return { x: (src.clientX - r.left) * (canvas.width / r.width), y: (src.clientY - r.top) * (canvas.height / r.height) };
+  }
+  canvas.onmousedown = e => { drawing = true; const p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); };
+  canvas.onmousemove = e => { if (!drawing) return; const p = pos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); };
+  canvas.onmouseup = canvas.onmouseleave = () => drawing = false;
+  canvas.ontouchstart = e => { e.preventDefault(); drawing = true; const p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); };
+  canvas.ontouchmove = e => { e.preventDefault(); if (!drawing) return; const p = pos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); };
+  canvas.ontouchend = () => drawing = false;
+}
+
+function clearSig() {
+  const canvas = document.getElementById('r-sig-canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+function isSigned() {
+  const canvas = document.getElementById('r-sig-canvas');
+  const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+  for (let i = 0; i < data.length; i += 4) { if (data[i] < 250 || data[i+1] < 250 || data[i+2] < 250) return true; }
+  return false;
+}
+
+// ── VALIDATION ────────────────────────────────────────────────────────────────
+function showError(msg) {
+  const el = document.getElementById('main-error');
+  el.textContent = '⚠️ ' + msg;
+  el.style.display = 'block';
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function validate() {
+  if (!document.getElementById('r-date').value) { showError('Please select a date.'); return false; }
+  if (!document.getElementById('r-project').value) { showError('Please select a project.'); return false; }
+  if (!document.getElementById('r-worktype').value) { showError('Please select a work type.'); return false; }
+  if (!document.getElementById('r-group').value) { showError('Please select a group or region.'); return false; }
+  if (!document.getElementById('r-location').value) { showError('Please select a location.'); return false; }
+  if (!document.getElementById('r-weather').value) { showError('Please select weather conditions.'); return false; }
+
+  // Check all inspection answers
+  const items = document.querySelectorAll('#inspection-items .yn-group');
+  const labels = document.querySelectorAll('#inspection-items > div');
+  for (let i = 0; i < labels.length; i++) {
+    const label = labels[i].querySelector('div').textContent.replace(' *', '');
+    const answered = labels[i].querySelector('.yn-btn.active');
+    if (!answered) { showError('Please answer: ' + label); return false; }
+  }
+
+  if (getSelectedEquipment().length === 0) { showError('Please select at least one piece of equipment.'); return false; }
+
+  const words = document.getElementById('r-works-desc').value.trim().split(/\s+/).filter(Boolean).length;
+  if (words < 10) { showError('Works description must be at least 10 words (' + words + ' entered).'); return false; }
+
+  if (!ynState['damage']) { showError('Please answer: Damage to Report?'); return false; }
+  if (ynState['damage'] === 'yes' && !document.getElementById('r-damage-desc').value.trim()) { showError('Please describe the damage.'); return false; }
+  if (!ynState['issues']) { showError('Please answer: Issues or Delays?'); return false; }
+  if (ynState['issues'] === 'yes' && !document.getElementById('r-issues-desc').value.trim()) { showError('Please describe the issues or delays.'); return false; }
+
+  const photoCount = photoFiles.filter(Boolean).length;
+  if (photoCount < 1) { showError('At least one work photo is required.'); return false; }
+
+  if (!document.getElementById('r-declare').checked) { showError('Please tick the declaration checkbox.'); return false; }
+  if (!isSigned()) { showError('Please sign the report before submitting.'); return false; }
+
+  return true;
+}
+
+// ── SUBMIT ────────────────────────────────────────────────────────────────────
+async function submitReport() {
+  document.getElementById('main-error').style.display = 'none';
+  document.getElementById('submit-error').style.display = 'none';
+  if (!validate()) return;
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  const progressWrap = document.getElementById('progress-wrap');
+  const progressFill = document.getElementById('progress-fill');
+  const progressLabel = document.getElementById('progress-label');
+  progressWrap.style.display = 'block';
+  const setProgress = (pct, label) => { progressFill.style.width = pct + '%'; progressLabel.textContent = label; };
+
+  try {
+    const project = projectsData.projects.find(p => p.id === document.getElementById('r-project').value);
+    const date = document.getElementById('r-date').value;
+    const dateFormatted = date.replace(/-/g, '');
+    const projectShort = project ? project.shortName.replace(/\//g, '-') : 'UNKNOWN';
+    const groupVal = document.getElementById('r-group').value.replace(/[^a-zA-Z0-9]/g, '-');
+    const locVal = document.getElementById('r-location').value.replace(/[^a-zA-Z0-9]/g, '-').substring(0, 15);
+    const personName = currentUser.name.replace(/\s+/g, '-');
+    const signedAt = new Date().toLocaleString('en-AU', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+    const reportName = dateFormatted + '-' + projectShort + '-' + groupVal + '-' + locVal + '-' + personName;
+    const folderPath = 'OPERATIONS/PROJECTS/' + (project ? project.spFolder : 'UNKNOWN') + '/Work Reports';
+
+    setProgress(15, 'Generating PDF...');
+    await sleep(300);
+    const pdfBase64 = await generatePDF(project, date, signedAt, reportName);
+
+    setProgress(50, 'Uploading report to SharePoint...');
+    const res = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ folderName: folderPath, fileName: reportName + '.pdf', fileBase64: pdfBase64, fileType: 'application/pdf', createPath: true })
+    });
+    const result = await res.json();
+    if (!res.ok || result.error) throw new Error(result.error || 'Upload failed');
+
+    setProgress(70, 'Uploading photos...');
+    let photoCount = 0;
+    for (let i = 0; i < photoFiles.length; i++) {
+      if (!photoFiles[i]) continue;
+      photoCount++;
+      const ext = photoFiles[i].name.split('.').pop() || 'jpg';
+      const b64 = await fileToBase64(photoFiles[i]);
+      await fetch(WORKER_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folderName: folderPath, fileName: reportName + '-Photo' + photoCount + '.' + ext, fileBase64: b64, fileType: photoFiles[i].type || 'image/jpeg', createPath: false })
+      });
+      setProgress(70 + (photoCount / Math.max(photoFiles.filter(Boolean).length, 1)) * 25, 'Uploading photo ' + photoCount + '...');
+    }
+
+    setProgress(100, 'Complete!');
+    await sleep(400);
+    clearFormDraft();
+    document.getElementById('form-view').style.display = 'none';
+    document.getElementById('success-view').style.display = 'block';
+    document.getElementById('success-detail').innerHTML = 'Report saved to:<br><strong>' + folderPath + '/' + reportName + '.pdf</strong>' + (photoCount > 0 ? '<br>' + photoCount + ' photo(s) uploaded.' : '');
+
+  } catch(err) {
+    btn.disabled = false;
+    progressWrap.style.display = 'none';
+    const errEl = document.getElementById('submit-error');
+    errEl.textContent = '⚠️ ' + (err.message || 'Submission failed. Please try again.');
+    errEl.style.display = 'block';
+  }
+}
+
+// ── GENERATE PDF ──────────────────────────────────────────────────────────────
+async function generatePDF(project, date, signedAt, reportName) {
+  const doc = new window.jspdf.jsPDF();
+  const navy = [45, 43, 119], teal = [6, 116, 156], white = [255, 255, 255], green = [29, 158, 117];
+
+  // Header
+  doc.setFillColor(...navy); doc.rect(0, 0, 210, 28, 'F');
+  try {
+    const lr = await fetch('TER-logo.png'); const lb = await lr.blob();
+    const ld = await new Promise(r => { const rd = new FileReader(); rd.onload = () => r(rd.result); rd.readAsDataURL(lb); });
+    doc.addImage(ld, 'PNG', 8, 4, 32, 18);
+  } catch(e) {}
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(...white);
+  doc.text('Top End Resources', 44, 12);
+  doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.text('Works Report', 44, 18);
+  doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.text(reportName, 202, 12, { align: 'right' });
+  doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.text(new Date().toLocaleDateString('en-AU'), 202, 18, { align: 'right' });
+  doc.setFillColor(...teal); doc.rect(0, 28, 210, 2, 'F');
+
+  let y = 38;
+
+  const section = (title) => {
+    if (y > 260) { doc.addPage(); y = 16; }
+    doc.setFillColor(...navy); doc.rect(10, y, 190, 7, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...white);
+    doc.text(title.toUpperCase(), 14, y + 5); doc.setTextColor(0, 0, 0); y += 12;
+  };
+
+  const row = (label, value) => {
+    if (y > 272) { doc.addPage(); y = 16; }
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(90, 106, 122);
+    doc.text(label, 14, y);
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(26, 26, 46);
+    const lines = doc.splitTextToSize(String(value || '—'), 115);
+    doc.text(lines, 80, y); y += lines.length * 5 + 2;
+  };
+
+  const ynBadge = (label, val) => {
+    if (y > 272) { doc.addPage(); y = 16; }
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(90, 106, 122);
+    doc.text(label, 14, y);
+    if (val === 'yes') { doc.setFillColor(...green); doc.setTextColor(...white); }
+    else if (val === 'no') { doc.setFillColor(220, 38, 38); doc.setTextColor(...white); }
+    else { doc.setFillColor(200, 200, 200); doc.setTextColor(60, 60, 60); }
+    doc.roundedRect(170, y - 4.5, 30, 7, 1, 1, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+    doc.text(val ? val.toUpperCase() : '—', 185, y, { align: 'center' });
+    doc.setTextColor(0, 0, 0); y += 9;
+  };
+
+  // Report Details
+  section('Report Details');
+  row('Project', project ? project.name : '—');
+  row('Work Type', document.getElementById('r-worktype').value);
+  row('Group / Region', document.getElementById('r-group').value);
+  const locNotes = document.getElementById('r-location-notes').value.trim();
+  row('Location', document.getElementById('r-location').value + (locNotes ? ' — ' + locNotes : ''));
+  row('Date', new Date(date + 'T00:00:00').toLocaleDateString('en-AU', { weekday:'long', day:'numeric', month:'long', year:'numeric' }));
+  row('Prepared By', currentUser.name);
+  row('Weather', document.getElementById('r-weather').value);
+  if (gpsCoords) row('GPS', gpsCoords.lat + ', ' + gpsCoords.lng + ' (±' + gpsCoords.acc + 'm)');
+  y += 4;
+
+  // Inspection
+  section('Safety Inspection');
+  const inspItems = document.querySelectorAll('#inspection-items > div');
+  inspItems.forEach(item => {
+    const label = item.querySelector('div').textContent.replace(' *', '').trim();
+    const activeBtn = item.querySelector('.yn-btn.active');
+    const val = activeBtn ? (activeBtn.classList.contains('yes') ? 'yes' : 'no') : null;
+    ynBadge(label, val);
+  });
+  y += 4;
+
+  // Equipment
+  const equip = getSelectedEquipment();
+  section('Equipment Used (' + equip.length + ')');
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(26, 26, 46);
+  const eLines = doc.splitTextToSize(equip.join(' | ') || '—', 182);
+  doc.text(eLines, 14, y); y += eLines.length * 5 + 6;
+
+  // Works Description
+  section('Works Description');
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(26, 26, 46);
+  const wLines = doc.splitTextToSize(document.getElementById('r-works-desc').value, 182);
+  if (y + wLines.length * 5 > 272) { doc.addPage(); y = 16; }
+  doc.text(wLines, 14, y); y += wLines.length * 5 + 4;
+
+  if (ynState['damage'] === 'yes') {
+    row('Damage Reported', document.getElementById('r-damage-desc').value);
+    y += 2;
+  }
+  if (ynState['issues'] === 'yes') {
+    row('Issues / Delays', document.getElementById('r-issues-desc').value);
+    y += 2;
+  }
+
+  // Sign Off
+  section('Declaration & Sign Off');
+  doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(90, 106, 122);
+  doc.text('I declare that the information in this Works Report is true and correct to the best of my knowledge.', 14, y);
+  doc.setTextColor(0, 0, 0); y += 8;
+
+  try {
+    const canvas = document.getElementById('r-sig-canvas');
+    const sigData = canvas.toDataURL('image/jpeg', 0.4);
+    if (y + 32 > 272) { doc.addPage(); y = 16; }
+    doc.setDrawColor(224, 231, 239); doc.rect(14, y, 120, 28);
+    doc.addImage(sigData, 'JPEG', 15, y + 1, 118, 26);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(26, 26, 46);
+    doc.text(currentUser.name, 140, y + 8);
+    doc.setFontSize(7); doc.setTextColor(90, 106, 122);
+    doc.text('Signed: ' + signedAt, 140, y + 14);
+    doc.text('Top End Resources Staff Portal', 140, y + 20);
+    y += 36;
+  } catch(e) {}
+
+  // Photos
+  const validPhotos = photoFiles.filter(Boolean);
+  if (validPhotos.length > 0) {
+    doc.addPage(); y = 16;
+    section('Work Photos (' + validPhotos.length + ')');
+    for (let i = 0; i < photoFiles.length; i++) {
+      if (!photoFiles[i]) continue;
+      try {
+        const dataUrl = await new Promise((resolve, reject) => { const rd = new FileReader(); rd.onload = () => resolve(rd.result); rd.onerror = reject; rd.readAsDataURL(photoFiles[i]); });
+        if (y + 100 > 272) { doc.addPage(); y = 16; }
+        doc.setFillColor(...teal); doc.rect(14, y, 182, 6, 'F');
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...white);
+        const meta = photoMeta[i] || {};
+        doc.text('Photo ' + (i+1) + (meta.timestamp ? ' — ' + meta.timestamp : '') + (meta.gps && meta.gps !== 'GPS unavailable' ? ' — GPS: ' + meta.gps : ''), 17, y + 4.5);
+        doc.setTextColor(0, 0, 0); y += 8;
+        doc.addImage(dataUrl, 'JPEG', 14, y, 182, 100, undefined, 'FAST');
+        y += 108;
+      } catch(e) {}
+    }
+  }
+
+  // Footer
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setDrawColor(224, 231, 239); doc.line(10, 285, 200, 285);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(156, 163, 175);
+    doc.text('Top End Resources Pty Ltd — Works Report — Confidential', 10, 290);
+    doc.text('Page ' + i + ' of ' + pageCount, 200, 290, { align: 'right' });
+  }
+
+  return doc.output('datauristring').split(',')[1];
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const rd = new FileReader();
+    rd.onload = () => resolve(rd.result.split(',')[1]);
+    rd.onerror = reject;
+    rd.readAsDataURL(file);
+  });
+}
+
+
+// ── AUTO-SAVE FORM STATE ──────────────────────────────────────────────────────
+function saveFormState() {
+  const state = {
+    date: document.getElementById('r-date').value,
+    project: document.getElementById('r-project').value,
+    worktype: document.getElementById('r-worktype').value,
+    group: document.getElementById('r-group').value,
+    location: document.getElementById('r-location').value,
+    weather: document.getElementById('r-weather').value,
+    locationNotes: document.getElementById('r-location-notes').value,
+    worksDesc: document.getElementById('r-works-desc').value,
+    damageDesc: document.getElementById('r-damage-desc') ? document.getElementById('r-damage-desc').value : '',
+    issuesDesc: document.getElementById('r-issues-desc') ? document.getElementById('r-issues-desc').value : '',
+    ynState,
+    inspectionAnswers,
+    selectedEquipment: Array.from(selectedEquipment),
+  };
+  localStorage.setItem('ter_works_report_draft', JSON.stringify(state));
+}
+
+async function restoreFormState() {
+  const saved = localStorage.getItem('ter_works_report_draft');
+  if (!saved) return;
+  try {
+    const state = JSON.parse(saved);
+    if (state.date) document.getElementById('r-date').value = state.date;
+    if (state.weather) document.getElementById('r-weather').value = state.weather;
+    if (state.locationNotes) document.getElementById('r-location-notes').value = state.locationNotes;
+    if (state.worksDesc) {
+      document.getElementById('r-works-desc').value = state.worksDesc;
+      updateWordCount(document.getElementById('r-works-desc'), 'r-works-count', 10);
+    }
+    if (state.damageDesc && document.getElementById('r-damage-desc')) {
+      document.getElementById('r-damage-desc').value = state.damageDesc;
+    }
+    if (state.issuesDesc && document.getElementById('r-issues-desc')) {
+      document.getElementById('r-issues-desc').value = state.issuesDesc;
+    }
+
+    // Restore project and cascading dropdowns
+    if (state.project) {
+      document.getElementById('r-project').value = state.project;
+      onProjectChange();
+      await sleep(100);
+      if (state.worktype) document.getElementById('r-worktype').value = state.worktype;
+      if (state.group) {
+        document.getElementById('r-group').value = state.group;
+        onGroupChange();
+        await sleep(100);
+        if (state.location) document.getElementById('r-location').value = state.location;
+      }
+    }
+
+    // Restore yes/no state
+    if (state.ynState) {
+      ynState = state.ynState;
+      if (ynState.damage === 'yes') {
+        document.getElementById('damage-detail').style.display = 'block';
+        document.querySelector('[onclick*="setYN('damage','yes'"]')?.classList.add('active');
+      } else if (ynState.damage === 'no') {
+        document.querySelector('[onclick*="setYN('damage','no'"]')?.classList.add('active');
+      }
+      if (ynState.issues === 'yes') {
+        document.getElementById('issues-detail').style.display = 'block';
+        document.querySelector('[onclick*="setYN('issues','yes'"]')?.classList.add('active');
+      } else if (ynState.issues === 'no') {
+        document.querySelector('[onclick*="setYN('issues','no'"]')?.classList.add('active');
+      }
+    }
+
+    // Restore equipment
+    if (state.selectedEquipment && state.selectedEquipment.length > 0) {
+      state.selectedEquipment.forEach(id => {
+        const item = document.querySelector(`#equip-dropdown-list [data-id="${id}"]`);
+        if (item) {
+          selectedEquipment.add(id);
+          item.style.background = 'var(--teal-light)';
+          const chk = document.getElementById('equip-chk-' + id);
+          if (chk) { chk.textContent = '✓'; chk.style.borderColor = 'var(--teal)'; chk.style.color = 'var(--teal)'; }
+        }
+      });
+      updateEquipDisplay();
+    }
+
+  } catch(e) { console.warn('Could not restore form state:', e); }
+}
+
+function clearFormDraft() {
+  localStorage.removeItem('ter_works_report_draft');
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+</script>
+</body>
+</html>
