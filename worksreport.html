@@ -787,6 +787,15 @@ window.addEventListener('load', async () => {
   try {
     await restoreFormState();
   } catch(err) { console.error('[Init] restoreFormState:', err); }
+
+  // Sync any queued reports if already online when page loads
+  if (navigator.onLine) {
+    const q = JSON.parse(localStorage.getItem('ter_submission_queue') || '[]');
+    if (q.length > 0) {
+      console.log('[Init] Online at page load with ' + q.length + ' queued item(s) — syncing');
+      setTimeout(syncQueuedSubmissions, 1500);
+    }
+  }
 });
 
 // ── PROJECTS ──────────────────────────────────────────────────────────────────
@@ -1623,14 +1632,16 @@ async function syncQueuedSubmissions() {
         console.log('[Sync] Regenerating PDF for:', item.fileName);
         fileBase64 = await regenerateWorksPDF(item);
       } else {
-        console.warn('[Sync] Unknown item type, skipping:', item.type, item.fileName);
+        // Different report type — leave in queue for supervisor report page to handle
+        console.log('[Sync] Skipping type:' + item.type + ' item (' + item.fileName + ') — needs supervisor report page to sync');
         remaining.push(item); continue;
       }
-      console.log('[Sync] Uploading:', item.fileName, 'to', item.folderName);
+      const payload = { folderName: item.folderName, fileName: item.fileName, fileBase64, fileType: 'application/pdf', createPath: true };
+      console.log('[Sync] Sending to worker:', WORKER_URL, JSON.stringify({ folderName: payload.folderName, fileName: payload.fileName, fileType: payload.fileType, createPath: payload.createPath, fileBase64Length: fileBase64 ? fileBase64.length : 0 }));
       const res = await fetch(WORKER_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ folderName: item.folderName, fileName: item.fileName, fileBase64, fileType: 'application/pdf', createPath: true })
+        body: JSON.stringify(payload)
       });
       if (res.ok) {
         console.log('[Sync] ✅ Upload successful:', item.fileName);
@@ -1706,7 +1717,8 @@ async function regenerateWorksPDF(item) {
 
 // Auto-sync when connection is restored
 window.addEventListener('online', () => {
-  console.log('[Network] Back online — syncing queued submissions');
+  const queue = JSON.parse(localStorage.getItem('ter_submission_queue') || '[]');
+  console.log('[Network] ✅ online event fired — navigator.onLine=' + navigator.onLine + ' — queue has ' + queue.length + ' item(s)');
   syncQueuedSubmissions();
 });
 
