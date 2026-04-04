@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ter-portal-v9';
+const CACHE_NAME = 'ter-portal-v10';
 
 // Install — activate immediately, no pre-caching (avoids install stalls on mobile)
 self.addEventListener('install', event => {

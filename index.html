@@ -723,7 +723,7 @@ function showDashboard() {
 async function cacheAppAssets() {
   if (!('caches' in window)) return;
   try {
-    const cache = await caches.open('ter-portal-v6');
+    const cache = await caches.open('ter-portal-v10');
     const assets = ['/', '/index.html', '/worksreport.html', '/supervisorreport.html', '/projects.json', '/users.json', '/TER-logo.png'];
     await Promise.allSettled(assets.map(url => cache.add(url).catch(e => console.warn('[Cache] Failed:', url, e))));
     console.log('[Cache] App assets pre-cached on login');

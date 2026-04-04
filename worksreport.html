@@ -1234,18 +1234,44 @@ async function submitReport() {
     const reportName = dateFormatted + '-' + projectShort + '-' + groupVal + '-' + locVal + '-' + personName;
     const folderPath = 'OPERATIONS/PROJECTS/' + (project ? project.spFolder : 'UNKNOWN') + '/Work Reports';
 
+    // Offline: capture form snapshot only — skip PDF generation entirely
+    if (!navigator.onLine) {
+      setProgress(20, 'Saving offline...');
+      const sigCanvas = document.getElementById('r-sig-canvas');
+      queueSubmission({
+        type: 'works',
+        formSnapshot: {
+          date,
+          project: document.getElementById('r-project').value,
+          worktype: document.getElementById('r-worktype').value,
+          group: document.getElementById('r-group').value,
+          location: document.getElementById('r-location').value,
+          weather: document.getElementById('r-weather').value,
+          locationNotes: document.getElementById('r-location-notes').value,
+          worksDesc: document.getElementById('r-works-desc').value,
+          damageDesc: document.getElementById('r-damage-desc') ? document.getElementById('r-damage-desc').value : '',
+          issuesDesc: document.getElementById('r-issues-desc') ? document.getElementById('r-issues-desc').value : '',
+          ynState: JSON.parse(JSON.stringify(ynState)),
+          inspectionAnswers: JSON.parse(JSON.stringify(inspectionAnswers)),
+          selectedEquipment: Array.from(selectedEquipment),
+          signedAt,
+        },
+        sigData: sigCanvas.toDataURL('image/jpeg', 0.3),
+        folderName: folderPath,
+        fileName: reportName + '.pdf',
+        pdfProject: project ? { id: project.id, name: project.name, shortName: project.shortName, spFolder: project.spFolder } : null,
+        pdfSignedAt: signedAt,
+        pdfReportName: reportName
+      });
+      throw new Error('OFFLINE_QUEUED');
+    }
+
     setProgress(15, 'Generating PDF...');
     await sleep(300);
     const pdfBase64 = await generatePDF(project, date, signedAt, reportName);
 
     setProgress(50, 'Uploading report to SharePoint...');
-    // Check if online
     let res, result;
-    if (!navigator.onLine) {
-      // Queue for later sync
-      queueSubmission({ folderName: folderPath, fileName: reportName + '.pdf', fileBase64: pdfBase64, fileType: 'application/pdf', createPath: true });
-      throw new Error('OFFLINE_QUEUED');
-    }
     res = await fetch(WORKER_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1558,30 +1584,86 @@ function getQueueLength() {
 async function syncQueuedSubmissions() {
   const queue = JSON.parse(localStorage.getItem('ter_submission_queue') || '[]');
   if (queue.length === 0) return;
-  
   console.log('[Sync] Attempting to sync', queue.length, 'queued submissions');
   const remaining = [];
-  
-  for (const payload of queue) {
+  for (const item of queue) {
     try {
+      let fileBase64;
+      if (item.fileBase64) {
+        // Legacy format — use stored PDF directly
+        fileBase64 = item.fileBase64;
+      } else if (item.type === 'works') {
+        // New format — regenerate PDF from stored form snapshot
+        fileBase64 = await regenerateWorksPDF(item);
+      } else {
+        remaining.push(item); continue;
+      }
       const res = await fetch(WORKER_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({ folderName: item.folderName, fileName: item.fileName, fileBase64, fileType: 'application/pdf', createPath: true })
       });
       if (res.ok) {
-        console.log('[Sync] Successfully synced submission:', payload.fileName);
+        console.log('[Sync] Synced:', item.fileName);
       } else {
-        remaining.push(payload);
+        remaining.push(item);
       }
     } catch(e) {
-      remaining.push(payload); // Still offline
+      console.warn('[Sync] Failed:', item.fileName, e);
+      remaining.push(item);
     }
   }
-  
   localStorage.setItem('ter_submission_queue', JSON.stringify(remaining));
   if (remaining.length < queue.length) {
     console.log('[Sync] Synced', queue.length - remaining.length, 'submissions.');
+  }
+}
+
+async function regenerateWorksPDF(item) {
+  const fs = item.formSnapshot;
+  // Snapshot current global state so we can restore after generation
+  const prevYnState = JSON.parse(JSON.stringify(ynState));
+  const prevInspectionAnswers = JSON.parse(JSON.stringify(inspectionAnswers));
+  const prevSelectedEquipment = new Set(selectedEquipment);
+  try {
+    // Restore form fields into DOM
+    const set = (id, val) => { const el = document.getElementById(id); if (el && val !== undefined) el.value = val; };
+    set('r-date', fs.date);
+    set('r-weather', fs.weather);
+    set('r-location-notes', fs.locationNotes);
+    set('r-works-desc', fs.worksDesc);
+    set('r-damage-desc', fs.damageDesc);
+    set('r-issues-desc', fs.issuesDesc);
+    if (fs.project) {
+      set('r-project', fs.project);
+      onProjectChange();
+      await sleep(80);
+      set('r-worktype', fs.worktype);
+      set('r-group', fs.group);
+      onGroupChange();
+      await sleep(80);
+      set('r-location', fs.location);
+    }
+    // Restore global state objects
+    ynState = fs.ynState || {};
+    inspectionAnswers = fs.inspectionAnswers || {};
+    selectedEquipment = new Set(fs.selectedEquipment || []);
+    // Restore signature onto canvas
+    if (item.sigData) {
+      const canvas = document.getElementById('r-sig-canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      await new Promise(resolve => { img.onload = resolve; img.src = item.sigData; });
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    }
+    const project = item.pdfProject || projectsData.projects.find(p => p.id === fs.project);
+    return await generatePDF(project, fs.date, fs.signedAt || item.pdfSignedAt, item.pdfReportName || item.fileName.replace('.pdf', ''));
+  } finally {
+    // Always restore previous state
+    ynState = prevYnState;
+    inspectionAnswers = prevInspectionAnswers;
+    selectedEquipment = prevSelectedEquipment;
   }
 }
 

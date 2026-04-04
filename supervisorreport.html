@@ -757,6 +757,16 @@ window.addEventListener('load', async () => {
   addPersonnelRow();
   initSig();
   requestGPS();
+
+  // Restore any saved draft
+  try { await restoreFormState(); } catch(e) { console.warn('[Init] restoreFormState:', e); }
+
+  // Auto-save on any form input/change
+  const formView = document.getElementById('form-view');
+  if (formView) {
+    formView.addEventListener('input', saveFormState);
+    formView.addEventListener('change', saveFormState);
+  }
 });
 
 // ── PROJECTS ──────────────────────────────────────────────────────────────────
@@ -1170,18 +1180,52 @@ async function submitReport() {
     const reportName = dateFormatted + '-' + projectShort + '-Supervisor-Report-' + personName;
     const folderPath = 'OPERATIONS/PROJECTS/' + (project ? project.spFolder : 'UNKNOWN') + '/Supervisor Reports';
 
+    // Offline: capture form snapshot only — skip PDF generation entirely
+    if (!navigator.onLine) {
+      setProgress(20, 'Saving offline...');
+      const sigCanvas = document.getElementById('s-sig-canvas');
+      queueSubmission({
+        type: 'supervisor',
+        formSnapshot: {
+          date,
+          project: document.getElementById('s-project').value,
+          worktype: document.getElementById('s-worktype').value,
+          group: document.getElementById('s-group').value,
+          location: document.getElementById('s-location').value,
+          locationNotes: document.getElementById('s-location-notes').value,
+          weather: document.getElementById('s-weather').value,
+          worksSummary: document.getElementById('s-works-summary').value,
+          issuesText: document.getElementById('s-issues-text') ? document.getElementById('s-issues-text').value : '',
+          nextShift: document.getElementById('s-next-shift').value,
+          client: document.getElementById('s-client').value,
+          safety: document.getElementById('s-safety').value,
+          plantHours: document.getElementById('s-plant-hours').value,
+          labourHours: document.getElementById('s-labour-hours').value,
+          ynState: JSON.parse(JSON.stringify(ynState)),
+          selectedEquipment: Array.from(selectedEquipment),
+          personnel: Array.from(document.querySelectorAll('.personnel-row')).map(row => ({
+            name: row.querySelector('.pers-name') ? row.querySelector('.pers-name').value.trim() : '',
+            role: row.querySelector('.pers-role') ? row.querySelector('.pers-role').value.trim() : ''
+          })).filter(p => p.name),
+          signedAt,
+          gps: gpsCoords ? gpsCoords.lat + ', ' + gpsCoords.lng : null,
+        },
+        sigData: sigCanvas.toDataURL('image/jpeg', 0.3),
+        folderName: folderPath,
+        fileName: reportName + '.pdf',
+        pdfProject: project ? { id: project.id, name: project.name, shortName: project.shortName, spFolder: project.spFolder } : null,
+        pdfSignedAt: signedAt,
+        pdfReportName: reportName
+      });
+      throw new Error('OFFLINE_QUEUED');
+    }
+
     setProgress(15, 'Generating report PDF...');
     await sleep(300);
     const pdfBase64 = await generatePDF(project, date, signedAt, reportName);
 
     setProgress(50, 'Uploading to SharePoint...');
-    // Check if online
     let res, result;
-    if (!navigator.onLine) {
-      // Queue for later sync
-      queueSubmission({ folderName: folderPath, fileName: reportName + '.pdf', fileBase64: pdfBase64, fileType: 'application/pdf', createPath: true });
-      throw new Error('OFFLINE_QUEUED');
-    }
     res = await fetch(WORKER_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1192,6 +1236,7 @@ async function submitReport() {
 
     setProgress(100, 'Complete!');
     await sleep(400);
+    clearFormDraft();
     document.getElementById('form-view').style.display = 'none';
     document.getElementById('success-view').style.display = 'block';
     const photoCount = photoFiles.filter(Boolean).length;
@@ -1409,31 +1454,202 @@ function getQueueLength() {
 async function syncQueuedSubmissions() {
   const queue = JSON.parse(localStorage.getItem('ter_submission_queue') || '[]');
   if (queue.length === 0) return;
-  
   console.log('[Sync] Attempting to sync', queue.length, 'queued submissions');
   const remaining = [];
-  
-  for (const payload of queue) {
+  for (const item of queue) {
     try {
+      let fileBase64;
+      if (item.fileBase64) {
+        // Legacy format — use stored PDF directly
+        fileBase64 = item.fileBase64;
+      } else if (item.type === 'supervisor') {
+        // New format — regenerate PDF from stored form snapshot
+        fileBase64 = await regenerateSupervisorPDF(item);
+      } else {
+        remaining.push(item); continue;
+      }
       const res = await fetch(WORKER_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({ folderName: item.folderName, fileName: item.fileName, fileBase64, fileType: 'application/pdf', createPath: true })
       });
       if (res.ok) {
-        console.log('[Sync] Successfully synced submission:', payload.fileName);
+        console.log('[Sync] Synced:', item.fileName);
       } else {
-        remaining.push(payload);
+        remaining.push(item);
       }
     } catch(e) {
-      remaining.push(payload); // Still offline
+      console.warn('[Sync] Failed:', item.fileName, e);
+      remaining.push(item);
     }
   }
-  
   localStorage.setItem('ter_submission_queue', JSON.stringify(remaining));
   if (remaining.length < queue.length) {
     console.log('[Sync] Synced', queue.length - remaining.length, 'submissions.');
   }
+}
+
+async function regenerateSupervisorPDF(item) {
+  const fs = item.formSnapshot;
+  const prevYnState = JSON.parse(JSON.stringify(ynState));
+  const prevSelectedEquipment = new Set(selectedEquipment);
+  const prevGps = gpsCoords;
+  try {
+    const set = (id, val) => { const el = document.getElementById(id); if (el && val !== undefined) el.value = val; };
+    set('s-date', fs.date);
+    set('s-weather', fs.weather);
+    set('s-worktype', fs.worktype);
+    set('s-group', fs.group);
+    set('s-location', fs.location);
+    set('s-location-notes', fs.locationNotes);
+    set('s-works-summary', fs.worksSummary);
+    set('s-issues-text', fs.issuesText);
+    set('s-next-shift', fs.nextShift);
+    set('s-client', fs.client);
+    set('s-safety', fs.safety);
+    set('s-plant-hours', fs.plantHours);
+    set('s-labour-hours', fs.labourHours);
+    if (fs.project) { set('s-project', fs.project); onProjectChange(); await sleep(80); }
+    // Restore globals
+    ynState = fs.ynState || {};
+    selectedEquipment = new Set(fs.selectedEquipment || []);
+    gpsCoords = fs.gps ? { lat: fs.gps.split(', ')[0], lng: fs.gps.split(', ')[1] } : null;
+    // Restore personnel rows
+    const list = document.getElementById('personnel-list');
+    if (list && fs.personnel && fs.personnel.length) {
+      list.innerHTML = '';
+      personnelCount = 0;
+      fs.personnel.forEach(p => {
+        addPersonnelRow();
+        const rows = list.querySelectorAll('.personnel-row');
+        const last = rows[rows.length - 1];
+        if (last) {
+          const nameEl = last.querySelector('.pers-name');
+          const roleEl = last.querySelector('.pers-role');
+          if (nameEl) nameEl.value = p.name;
+          if (roleEl) roleEl.value = p.role;
+        }
+      });
+    }
+    // Restore signature
+    if (item.sigData) {
+      const canvas = document.getElementById('s-sig-canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      await new Promise(resolve => { img.onload = resolve; img.src = item.sigData; });
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    }
+    const project = item.pdfProject || projectsData.projects.find(p => p.id === fs.project);
+    return await generatePDF(project, fs.date, fs.signedAt || item.pdfSignedAt, item.pdfReportName || item.fileName.replace('.pdf', ''));
+  } finally {
+    ynState = prevYnState;
+    selectedEquipment = prevSelectedEquipment;
+    gpsCoords = prevGps;
+  }
+}
+
+// ── AUTO-SAVE FORM STATE ──────────────────────────────────────────────────────
+function saveFormState() {
+  try {
+    const state = {
+      date: document.getElementById('s-date').value,
+      project: document.getElementById('s-project').value,
+      worktype: document.getElementById('s-worktype').value,
+      group: document.getElementById('s-group').value,
+      location: document.getElementById('s-location').value,
+      locationNotes: document.getElementById('s-location-notes').value,
+      weather: document.getElementById('s-weather').value,
+      worksSummary: document.getElementById('s-works-summary').value,
+      issuesText: document.getElementById('s-issues-text') ? document.getElementById('s-issues-text').value : '',
+      nextShift: document.getElementById('s-next-shift').value,
+      client: document.getElementById('s-client').value,
+      safety: document.getElementById('s-safety').value,
+      plantHours: document.getElementById('s-plant-hours').value,
+      labourHours: document.getElementById('s-labour-hours').value,
+      ynState,
+      selectedEquipment: Array.from(selectedEquipment),
+      personnel: Array.from(document.querySelectorAll('.personnel-row')).map(row => ({
+        name: row.querySelector('.pers-name') ? row.querySelector('.pers-name').value.trim() : '',
+        role: row.querySelector('.pers-role') ? row.querySelector('.pers-role').value.trim() : ''
+      }))
+    };
+    localStorage.setItem('ter_supervisor_report_draft', JSON.stringify(state));
+  } catch(e) {}
+}
+
+async function restoreFormState() {
+  const saved = localStorage.getItem('ter_supervisor_report_draft');
+  if (!saved) return;
+  try {
+    const state = JSON.parse(saved);
+    const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
+    set('s-date', state.date);
+    set('s-weather', state.weather);
+    set('s-location-notes', state.locationNotes);
+    set('s-works-summary', state.worksSummary);
+    set('s-issues-text', state.issuesText);
+    set('s-next-shift', state.nextShift);
+    set('s-client', state.client);
+    set('s-safety', state.safety);
+    set('s-plant-hours', state.plantHours);
+    set('s-labour-hours', state.labourHours);
+    if (state.project) {
+      set('s-project', state.project);
+      onProjectChange();
+      await sleep(80);
+      set('s-worktype', state.worktype);
+      set('s-group', state.group);
+      onGroupChange();
+      await sleep(80);
+      set('s-location', state.location);
+    }
+    if (state.ynState) {
+      ynState = state.ynState;
+      if (ynState.issues) {
+        const btn = document.querySelector(`.yn-group button[onclick*="'issues','${ynState.issues}'"]`);
+        if (btn) btn.classList.add('active');
+        if (ynState.issues === 'yes') {
+          const detail = document.getElementById('issues-detail');
+          if (detail) detail.style.display = 'block';
+        }
+      }
+    }
+    if (state.selectedEquipment && state.selectedEquipment.length) {
+      state.selectedEquipment.forEach(id => {
+        selectedEquipment.add(id);
+        const item = document.querySelector(`#s-equip-dropdown-list [data-id="${id}"]`);
+        if (item) {
+          item.style.background = 'var(--teal-light)';
+          const chk = document.getElementById('s-equip-chk-' + id);
+          if (chk) { chk.textContent = '✓'; chk.style.borderColor = 'var(--teal)'; chk.style.color = 'var(--teal)'; }
+        }
+      });
+      if (typeof updateEquipDisplay === 'function') updateEquipDisplay();
+    }
+    if (state.personnel && state.personnel.length) {
+      const list = document.getElementById('personnel-list');
+      if (list) {
+        list.innerHTML = '';
+        personnelCount = 0;
+        state.personnel.forEach(p => {
+          addPersonnelRow();
+          const rows = list.querySelectorAll('.personnel-row');
+          const last = rows[rows.length - 1];
+          if (last && p.name) {
+            const nameEl = last.querySelector('.pers-name');
+            const roleEl = last.querySelector('.pers-role');
+            if (nameEl) nameEl.value = p.name;
+            if (roleEl) roleEl.value = p.role;
+          }
+        });
+      }
+    }
+  } catch(e) { console.warn('Could not restore supervisor form state:', e); }
+}
+
+function clearFormDraft() {
+  localStorage.removeItem('ter_supervisor_report_draft');
 }
 
 // Auto-sync when connection is restored
