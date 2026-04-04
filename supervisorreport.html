@@ -722,7 +722,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   <div class="success-icon">✅</div>
   <div class="success-title">Report Submitted!</div>
   <div class="success-sub" id="success-detail"></div>
-  <button onclick="location.reload()" style="margin-top:20px;padding:12px 32px;background:var(--gradient);color:#fff;border:none;border-radius:var(--radius-sm);font-family:inherit;font-size:14px;font-weight:600;cursor:pointer">Submit Another Report</button>
+  <button onclick="window.location.href = window.location.pathname" style="margin-top:20px;padding:12px 32px;background:var(--gradient);color:#fff;border:none;border-radius:var(--radius-sm);font-family:inherit;font-size:14px;font-weight:600;cursor:pointer">Submit Another Report</button>
 </div>
 </div>
 
@@ -1170,6 +1170,9 @@ async function submitReport() {
 
   const setProgress = (pct, label) => { progressFill.style.width = pct + '%'; progressLabel.textContent = label; };
 
+  // Hoist snapshot so catch block can queue it if network fails mid-upload
+  let offlineSnapshot = null;
+
   try {
     const project = projectsData.projects.find(p => p.id === document.getElementById('s-project').value);
     const date = document.getElementById('s-date').value;
@@ -1180,43 +1183,46 @@ async function submitReport() {
     const reportName = dateFormatted + '-' + projectShort + '-Supervisor-Report-' + personName;
     const folderPath = 'OPERATIONS/PROJECTS/' + (project ? project.spFolder : 'UNKNOWN') + '/Supervisor Reports';
 
-    // Offline: capture form snapshot only — skip PDF generation entirely
+    // Build snapshot early so it's available in catch if network fails
+    const sigCanvas = document.getElementById('s-sig-canvas');
+    offlineSnapshot = {
+      type: 'supervisor',
+      formSnapshot: {
+        date,
+        project: document.getElementById('s-project').value,
+        worktype: document.getElementById('s-worktype').value,
+        group: document.getElementById('s-group').value,
+        location: document.getElementById('s-location').value,
+        locationNotes: document.getElementById('s-location-notes').value,
+        weather: document.getElementById('s-weather').value,
+        worksSummary: document.getElementById('s-works-summary').value,
+        issuesText: document.getElementById('s-issues-text') ? document.getElementById('s-issues-text').value : '',
+        nextShift: document.getElementById('s-next-shift').value,
+        client: document.getElementById('s-client').value,
+        safety: document.getElementById('s-safety').value,
+        plantHours: document.getElementById('s-plant-hours').value,
+        labourHours: document.getElementById('s-labour-hours').value,
+        ynState: JSON.parse(JSON.stringify(ynState)),
+        selectedEquipment: Array.from(selectedEquipment),
+        personnel: Array.from(document.querySelectorAll('.personnel-row')).map(row => ({
+          name: row.querySelector('.pers-name') ? row.querySelector('.pers-name').value.trim() : '',
+          role: row.querySelector('.pers-role') ? row.querySelector('.pers-role').value.trim() : ''
+        })).filter(p => p.name),
+        signedAt,
+        gps: gpsCoords ? gpsCoords.lat + ', ' + gpsCoords.lng : null,
+      },
+      sigData: sigCanvas.toDataURL('image/jpeg', 0.3),
+      folderName: folderPath,
+      fileName: reportName + '.pdf',
+      pdfProject: project ? { id: project.id, name: project.name, shortName: project.shortName, spFolder: project.spFolder } : null,
+      pdfSignedAt: signedAt,
+      pdfReportName: reportName
+    };
+
+    // Offline: queue and skip PDF generation entirely
     if (!navigator.onLine) {
       setProgress(20, 'Saving offline...');
-      const sigCanvas = document.getElementById('s-sig-canvas');
-      queueSubmission({
-        type: 'supervisor',
-        formSnapshot: {
-          date,
-          project: document.getElementById('s-project').value,
-          worktype: document.getElementById('s-worktype').value,
-          group: document.getElementById('s-group').value,
-          location: document.getElementById('s-location').value,
-          locationNotes: document.getElementById('s-location-notes').value,
-          weather: document.getElementById('s-weather').value,
-          worksSummary: document.getElementById('s-works-summary').value,
-          issuesText: document.getElementById('s-issues-text') ? document.getElementById('s-issues-text').value : '',
-          nextShift: document.getElementById('s-next-shift').value,
-          client: document.getElementById('s-client').value,
-          safety: document.getElementById('s-safety').value,
-          plantHours: document.getElementById('s-plant-hours').value,
-          labourHours: document.getElementById('s-labour-hours').value,
-          ynState: JSON.parse(JSON.stringify(ynState)),
-          selectedEquipment: Array.from(selectedEquipment),
-          personnel: Array.from(document.querySelectorAll('.personnel-row')).map(row => ({
-            name: row.querySelector('.pers-name') ? row.querySelector('.pers-name').value.trim() : '',
-            role: row.querySelector('.pers-role') ? row.querySelector('.pers-role').value.trim() : ''
-          })).filter(p => p.name),
-          signedAt,
-          gps: gpsCoords ? gpsCoords.lat + ', ' + gpsCoords.lng : null,
-        },
-        sigData: sigCanvas.toDataURL('image/jpeg', 0.3),
-        folderName: folderPath,
-        fileName: reportName + '.pdf',
-        pdfProject: project ? { id: project.id, name: project.name, shortName: project.shortName, spFolder: project.spFolder } : null,
-        pdfSignedAt: signedAt,
-        pdfReportName: reportName
-      });
+      queueSubmission(offlineSnapshot);
       throw new Error('OFFLINE_QUEUED');
     }
 
@@ -1246,12 +1252,18 @@ async function submitReport() {
     btn.disabled = false;
     progressWrap.style.display = 'none';
     const errEl = document.getElementById('submit-error');
-    if (err.message === 'OFFLINE_QUEUED') {
-      // Show offline success message
+    const showQueued = () => {
       document.getElementById('form-view').style.display = 'none';
       document.getElementById('success-view').style.display = 'block';
-      document.getElementById('success-detail').innerHTML = '📵 <strong>You are offline.</strong><br>Your report has been saved and will automatically upload to SharePoint when your connection is restored.<br><br>Do not close this app until you are back online.';
+      document.getElementById('success-detail').innerHTML = '📵 <strong>Saved offline.</strong><br>Your report will automatically upload to SharePoint when you\'re back online.';
       if (typeof clearFormDraft === 'function') clearFormDraft();
+    };
+    if (err.message === 'OFFLINE_QUEUED') {
+      showQueued();
+    } else if (err instanceof TypeError && offlineSnapshot) {
+      console.log('[Offline] Network error on upload — queuing for sync');
+      queueSubmission(offlineSnapshot);
+      showQueued();
     } else {
       errEl.textContent = '⚠️ ' + (err.message || 'Submission failed. Please try again.');
       errEl.style.display = 'block';
@@ -1451,11 +1463,26 @@ function getQueueLength() {
   return queue.length;
 }
 
+function showSyncToast(msg) {
+  let t = document.getElementById('sync-toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'sync-toast';
+    t.style.cssText = 'position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:#1a7a5e;color:#fff;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:600;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.2);transition:opacity 0.4s';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = '1';
+  clearTimeout(t._hide);
+  t._hide = setTimeout(() => { t.style.opacity = '0'; }, 4000);
+}
+
 async function syncQueuedSubmissions() {
   const queue = JSON.parse(localStorage.getItem('ter_submission_queue') || '[]');
   if (queue.length === 0) return;
-  console.log('[Sync] Attempting to sync', queue.length, 'queued submissions');
+  console.log('[Sync] ' + new Date().toLocaleTimeString() + ' — Attempting to sync ' + queue.length + ' queued submission(s)');
   const remaining = [];
+  let syncedCount = 0;
   for (const item of queue) {
     try {
       let fileBase64;
@@ -1464,28 +1491,39 @@ async function syncQueuedSubmissions() {
         fileBase64 = item.fileBase64;
       } else if (item.type === 'supervisor') {
         // New format — regenerate PDF from stored form snapshot
+        console.log('[Sync] Regenerating PDF for:', item.fileName);
         fileBase64 = await regenerateSupervisorPDF(item);
       } else {
+        console.warn('[Sync] Unknown item type, skipping:', item.type, item.fileName);
         remaining.push(item); continue;
       }
+      console.log('[Sync] Uploading:', item.fileName, 'to', item.folderName);
       const res = await fetch(WORKER_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ folderName: item.folderName, fileName: item.fileName, fileBase64, fileType: 'application/pdf', createPath: true })
       });
       if (res.ok) {
-        console.log('[Sync] Synced:', item.fileName);
+        console.log('[Sync] ✅ Upload successful:', item.fileName);
+        syncedCount++;
       } else {
+        const errBody = await res.text().catch(() => '');
+        console.warn('[Sync] ❌ Upload failed (HTTP ' + res.status + '):', item.fileName, errBody);
         remaining.push(item);
       }
     } catch(e) {
-      console.warn('[Sync] Failed:', item.fileName, e);
+      console.warn('[Sync] ❌ Error syncing:', item.fileName, e);
       remaining.push(item);
     }
   }
   localStorage.setItem('ter_submission_queue', JSON.stringify(remaining));
-  if (remaining.length < queue.length) {
-    console.log('[Sync] Synced', queue.length - remaining.length, 'submissions.');
+  if (syncedCount > 0) {
+    const msg = '✅ ' + syncedCount + ' queued report' + (syncedCount > 1 ? 's' : '') + ' uploaded to SharePoint!';
+    console.log('[Sync] ' + msg);
+    showSyncToast(msg);
+  }
+  if (remaining.length > 0) {
+    console.warn('[Sync] ' + remaining.length + ' submission(s) still pending — will retry when online.');
   }
 }
 
@@ -1670,7 +1708,7 @@ if ('serviceWorker' in navigator) {
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 </script>
 <div class="bottom-nav">
-  <a class="bottom-nav-back" href="index.html" onclick="if(!navigator.onLine){event.preventDefault();alert('You are offline — Dashboard requires an internet connection.');}">&#8592; Dashboard</a>
+  <a class="bottom-nav-back" href="index.html">&#8592; Dashboard</a>
 </div>
 </body>
 </html>
