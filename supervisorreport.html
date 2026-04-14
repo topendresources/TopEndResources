@@ -1255,7 +1255,7 @@ async function submitReport() {
         signedAt,
         gps: gpsCoords ? gpsCoords.lat + ', ' + gpsCoords.lng : null,
       },
-      sigData: sigCanvas.toDataURL('image/jpeg', 0.3),
+      sigData: sigCanvas.toDataURL('image/png'),
       folderName: folderPath,
       fileName: reportName + '.pdf',
       pdfProject: project ? { id: project.id, name: project.name, shortName: project.shortName, spFolder: project.spFolder } : null,
@@ -1436,10 +1436,10 @@ async function generatePDF(project, date, signedAt, reportName) {
   doc.setTextColor(0, 0, 0); y += 8;
   try {
     const canvas = document.getElementById('s-sig-canvas');
-    const sigData = canvas.toDataURL('image/jpeg', 0.3);
+    const sigData = canvas.toDataURL('image/png');
     if (y + 32 > 272) { doc.addPage(); y = 16; }
     doc.setDrawColor(224, 231, 239); doc.rect(14, y, 120, 28);
-    doc.addImage(sigData, 'JPEG', 15, y + 1, 118, 26);
+    doc.addImage(sigData, 'PNG', 15, y + 1, 118, 26);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(26, 26, 46);
     doc.text(currentUser.name, 140, y + 8);
     doc.setFontSize(7); doc.setTextColor(90, 106, 122);
@@ -1628,6 +1628,7 @@ async function regenerateSupervisorPDF(item) {
       const img = new Image();
       await new Promise(resolve => { img.onload = resolve; img.src = item.sigData; });
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     }
     const project = item.pdfProject || projectsData.projects.find(p => p.id === fs.project);
