@@ -477,6 +477,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   .photo-slot input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
   .photo-slot-label { font-size: 11px; color: var(--text-hint); text-align: center; z-index: 1; }
   .add-photo-btn { width: 100%; padding: 12px; border: 2px dashed var(--teal); border-radius: var(--radius-sm); background: var(--teal-light); color: var(--teal); font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; margin-bottom: 10px; }
+  .photo-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000; align-items: flex-end; justify-content: center; }
+  .photo-overlay.active { display: flex; }
+  .photo-sheet { background: var(--surface); border-radius: 16px 16px 0 0; padding: 20px 20px 32px; width: 100%; max-width: 480px; box-shadow: 0 -4px 24px rgba(0,0,0,0.15); }
+  .photo-sheet-title { font-size: 14px; font-weight: 700; color: var(--navy); margin-bottom: 14px; text-align: center; }
+  .photo-opt-btn { display: flex; align-items: center; gap: 14px; width: 100%; padding: 14px 16px; background: var(--bg); border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-family: inherit; font-size: 14px; font-weight: 600; color: var(--navy); cursor: pointer; margin-bottom: 10px; text-align: left; }
+  .photo-opt-btn:active { background: var(--teal-light); border-color: var(--teal); }
+  .photo-opt-icon { font-size: 22px; width: 28px; text-align: center; }
+  .photo-cancel-btn { width: 100%; padding: 12px; background: none; border: none; font-family: inherit; font-size: 14px; color: var(--text-secondary); cursor: pointer; margin-top: 4px; }
 
   /* Signature */
   .sig-wrap { border: 1.5px solid var(--border); border-radius: var(--radius-sm); background: #fff; position: relative; }
@@ -1005,17 +1013,36 @@ function requestGPS() {
   }
 }
 
+let _photoOptIdx = null;
+
 function addPhotoSlot() {
   const idx = photoFiles.length;
   photoFiles.push(null);
   const slot = document.createElement('div');
   slot.className = 'photo-slot';
   slot.id = 'sphoto-' + idx;
+  slot.onclick = () => showPhotoOptions(idx);
   slot.innerHTML = `
-    <input type="file" accept="image/*" capture="environment" onchange="handlePhoto(this,${idx})">
-    <div style="font-size:28px;z-index:1">📷</div>
-    <div class="photo-slot-label">Photo ${idx+1}</div>`;
+    <div style="font-size:28px;z-index:1" id="sphoto-icon-${idx}">📷</div>
+    <div class="photo-slot-label" id="sphoto-lbl-${idx}">Tap to add</div>`;
   document.getElementById('s-photo-grid').appendChild(slot);
+  const wrap = document.createElement('div');
+  wrap.id = 'sphoto-inputs-' + idx;
+  wrap.innerHTML = `
+    <input type="file" id="sphoto-cam-${idx}"  accept="image/*" capture="environment" style="display:none" onchange="handlePhoto(this,${idx})">
+    <input type="file" id="sphoto-gal-${idx}"  accept="image/*" style="display:none" onchange="handlePhoto(this,${idx})">
+    <input type="file" id="sphoto-file-${idx}" accept="image/*,application/pdf,.pdf,.doc,.docx" style="display:none" onchange="handlePhoto(this,${idx})">`;
+  document.body.appendChild(wrap);
+}
+
+function showPhotoOptions(idx) { _photoOptIdx = idx; document.getElementById('photo-overlay').classList.add('active'); }
+function closePhotoOptions() { document.getElementById('photo-overlay').classList.remove('active'); }
+function triggerPhotoInput(type) {
+  closePhotoOptions();
+  if (_photoOptIdx === null) return;
+  const map = { camera: 'sphoto-cam-', gallery: 'sphoto-gal-', file: 'sphoto-file-' };
+  const el = document.getElementById(map[type] + _photoOptIdx);
+  if (el) el.click();
 }
 
 
@@ -1080,25 +1107,33 @@ async function handlePhoto(input, idx) {
   if (!file) return;
   const ts = new Date().toLocaleString('en-AU');
   const gps = gpsCoords ? gpsCoords.lat + ',' + gpsCoords.lng : 'GPS unavailable';
-  photoMeta[idx] = { timestamp: ts, gps };
-
-  // Bake timestamp into the photo
-  const stamped = await bakeTimestamp(file, ts, gps);
-  photoFiles[idx] = stamped;
+  const isImage = file.type.startsWith('image/');
+  photoMeta[idx] = { timestamp: ts, gps, fileName: file.name, isImage };
 
   const slot = document.getElementById('sphoto-' + idx);
   slot.classList.add('has-photo');
-  const reader = new FileReader();
-  reader.onload = e => {
-    const existing = slot.querySelector('img');
-    if (existing) existing.remove();
-    const img = document.createElement('img');
-    img.src = e.target.result;
-    slot.insertBefore(img, slot.firstChild);
-    const lbl = slot.querySelector('.photo-slot-label');
-    if (lbl) lbl.textContent = '✅ ' + ts;
-  };
-  reader.readAsDataURL(stamped);
+  const lbl = document.getElementById('sphoto-lbl-' + idx);
+  const icon = document.getElementById('sphoto-icon-' + idx);
+  const existing = slot.querySelector('img');
+  if (existing) existing.remove();
+
+  if (isImage) {
+    const stamped = await bakeTimestamp(file, ts, gps);
+    photoFiles[idx] = stamped;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = document.createElement('img');
+      img.src = e.target.result;
+      slot.insertBefore(img, slot.firstChild);
+      if (lbl) lbl.textContent = '✅ ' + ts;
+      if (icon) icon.style.display = 'none';
+    };
+    reader.readAsDataURL(stamped);
+  } else {
+    photoFiles[idx] = file;
+    if (icon) { icon.textContent = '📎'; icon.style.display = ''; }
+    if (lbl) lbl.textContent = '📎 ' + file.name;
+  }
 }
 
 // ── SIGNATURE ─────────────────────────────────────────────────────────────────
@@ -1413,23 +1448,29 @@ async function generatePDF(project, date, signedAt, reportName) {
     y += 36;
   } catch(e) {}
 
-  // Photos
+  // Photos / Attachments
   const validPhotos = photoFiles.filter(Boolean);
   if (validPhotos.length > 0) {
     doc.addPage(); y = 16;
     section('Photos (' + validPhotos.length + ')');
     for (let i = 0; i < photoFiles.length; i++) {
       if (!photoFiles[i]) continue;
+      const meta = photoMeta[i] || {};
       try {
-        const dataUrl = await new Promise((resolve, reject) => { const rd = new FileReader(); rd.onload = () => resolve(rd.result); rd.onerror = reject; rd.readAsDataURL(photoFiles[i]); });
-        if (y + 100 > 272) { doc.addPage(); y = 16; }
+        if (y + 12 > 272) { doc.addPage(); y = 16; }
         doc.setFillColor(...teal); doc.rect(14, y, 182, 6, 'F');
         doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...white);
-        const meta = photoMeta[i] || {};
-        doc.text('Photo ' + (i+1) + (meta.timestamp ? ' — ' + meta.timestamp : ''), 17, y + 4.5);
-        doc.setTextColor(0, 0, 0); y += 8;
-        doc.addImage(dataUrl, 'JPEG', 14, y, 182, 100, undefined, 'FAST');
-        y += 108;
+        if (meta.isImage !== false) {
+          doc.text('Photo ' + (i+1) + (meta.timestamp ? ' — ' + meta.timestamp : ''), 17, y + 4.5);
+          doc.setTextColor(0, 0, 0); y += 8;
+          const dataUrl = await new Promise((resolve, reject) => { const rd = new FileReader(); rd.onload = () => resolve(rd.result); rd.onerror = reject; rd.readAsDataURL(photoFiles[i]); });
+          if (y + 100 > 272) { doc.addPage(); y = 16; }
+          doc.addImage(dataUrl, 'JPEG', 14, y, 182, 100, undefined, 'FAST');
+          y += 108;
+        } else {
+          doc.text('Attachment ' + (i+1) + ': ' + (meta.fileName || 'file') + (meta.timestamp ? ' — ' + meta.timestamp : ''), 17, y + 4.5);
+          doc.setTextColor(0, 0, 0); y += 12;
+        }
       } catch(e) {}
     }
   }
@@ -1719,6 +1760,15 @@ if ('serviceWorker' in navigator) {
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 </script>
+<div class="photo-overlay" id="photo-overlay" onclick="if(event.target===this)closePhotoOptions()">
+  <div class="photo-sheet">
+    <div class="photo-sheet-title">Add Photo / File</div>
+    <button class="photo-opt-btn" onclick="triggerPhotoInput('camera')"><span class="photo-opt-icon">📷</span>Take Photo</button>
+    <button class="photo-opt-btn" onclick="triggerPhotoInput('gallery')"><span class="photo-opt-icon">🖼️</span>Choose from Gallery</button>
+    <button class="photo-opt-btn" onclick="triggerPhotoInput('file')"><span class="photo-opt-icon">📁</span>Upload File</button>
+    <button class="photo-cancel-btn" onclick="closePhotoOptions()">Cancel</button>
+  </div>
+</div>
 <div class="bottom-nav">
   <a class="bottom-nav-back" href="index.html">&#8592; Dashboard</a>
 </div>
