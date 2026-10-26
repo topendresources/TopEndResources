@@ -1,0 +1,60 @@
+{
+  "users": [
+    {
+      "id": "TER-001",
+      "pass": "admin123",
+      "name": "Ryan Wojtowicz",
+      "firstName": "Ryan",
+      "role": "admin"
+    },
+    {
+      "id": "TER-002",
+      "pass": "super123",
+      "name": "Supervisor",
+      "firstName": "Supervisor",
+      "role": "supervisor"
+    },
+    {
+      "id": "TER-003",
+      "pass": "field123",
+      "name": "Field Worker",
+      "firstName": "Mate",
+      "role": "worker"
+    },
+    {
+      "id": "TER-004",
+      "pass": "Kurt4578",
+      "name": "Kurt Parker",
+      "firstName": "Kurt",
+      "role": "worker"
+    },
+    {
+      "id": "TER-005",
+      "pass": "LaunerK4578",
+      "name": "Kadie Launer",
+      "firstName": "Kadie",
+      "role": "worker"
+    },
+    {
+      "id": "TER-006",
+      "pass": "KerrC4578",
+      "name": "Christopher Kerr",
+      "firstName": "Christopher",
+      "role": "worker"
+    },
+    {
+      "id": "TER-008",
+      "pass": "ClarkM4578",
+      "name": "Michael Clarke",
+      "firstName": "Michael",
+      "role": "worker"
+    },
+    {
+      "id": "TER-009",
+      "pass": "HoltFitzL4578",
+      "name": "Liam Holt-Fitz",
+      "firstName": "Liam",
+      "role": "worker"
+    }
+  ]
+}
